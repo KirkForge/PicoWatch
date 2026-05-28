@@ -22,7 +22,7 @@ PicoWatch is the 4th product in the [Shogun](https://github.com/KirkForge/Shogun
 |---------|-------|-------|
 | **PicoSentry** | L2 | Static supply-chain scanning |
 | **IronDome** | L3/L4 | Runtime sandbox + behavioral analysis |
-| **55NDeep** | Delegation | Deterministic verification for cheap-model subagents — no babysitting needed |
+| **55NDeep** | Delegation | JSON schema + lang battery → cheap subagent writes code, GitNexus diffs keep drift near zero |
 | **PicoWatch** | L5/L6/L7 | LLM prompt/output defense + telemetry |
 
 ## Quick Start
