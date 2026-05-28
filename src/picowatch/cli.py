@@ -100,73 +100,32 @@ def _validate_output(args: argparse.Namespace, config: PicoWatchConfig) -> None:
 
 
 def _serve(args: argparse.Namespace, config: PicoWatchConfig) -> None:
-    """Handle serve subcommand — start telemetry daemon."""
+    """Handle serve subcommand — start FastAPI HTTP daemon."""
+    from picowatch.server import run_server
+
     print(f"PicoWatch v0.1.0 starting on {args.host}:{args.port}", file=sys.stderr)
-    print(f"Admin/metrics port: {config.admin_port}", file=sys.stderr)
-    print(f"Rules loaded: checking...", file=sys.stderr)
 
+    # Show loaded rules count
     guard = PromptGuard(config=config)
-    output_guard = OutputGuard(config=config)
-    sink = TelemetrySink()
-
-    health = health_check(
+    h = health_check(
         rules_loaded=len(guard.rules),
         corpus_hash=guard.corpus_hash,
         corpus_version=guard.corpus_version,
     )
+    print(f"Health: {json.dumps({'healthy': h.healthy, 'rules_loaded': h.rules_loaded, 'corpus_hash': h.corpus_hash}, indent=2)}", file=sys.stderr)
 
-    print(f"Health: {json.dumps({'healthy': health.healthy, 'rules_loaded': health.rules_loaded, 'corpus_hash': health.corpus_hash}, indent=2)}", file=sys.stderr)
+    auth_status = "enabled" if config.api_key else "disabled (set PICOWATCH_API_KEY to enable)"
+    print(f"API key auth: {auth_status}", file=sys.stderr)
 
-    # Simple stdlib HTTP server for health/metrics
-    try:
-        import http.server
+    print(f"Endpoints:", file=sys.stderr)
+    print(f"  POST /v1/scan/prompt  — Scan prompt for injection", file=sys.stderr)
+    print(f"  POST /v1/scan/output  — Validate LLM output", file=sys.stderr)
+    print(f"  GET  /v1/health       — Health check", file=sys.stderr)
+    print(f"  GET  /metrics          — Prometheus metrics", file=sys.stderr)
+    print(f"  GET  /v1/rules         — List active rules", file=sys.stderr)
+    print(f"  GET  /v1/rules/:id     — Rule detail", file=sys.stderr)
 
-        class PicoWatchHandler(http.server.BaseHTTPRequestHandler):
-            """Simple HTTP handler for health and metrics."""
-
-            def do_GET(self) -> None:
-                if self.path == "/v1/health":
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/json")
-                    self.end_headers()
-                    data = json.dumps({
-                        "healthy": health.healthy,
-                        "version": health.version,
-                        "rules_loaded": health.rules_loaded,
-                        "corpus_hash": health.corpus_hash,
-                        "corpus_version": health.corpus_version,
-                    })
-                    self.wfile.write(data.encode())
-                elif self.path == "/metrics":
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/plain")
-                    self.end_headers()
-                    self.wfile.write(sink.render_prometheus().encode())
-                elif self.path == "/v1/rules":
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/json")
-                    self.end_headers()
-                    rules_data = [
-                        {"id": r.id, "category": r.category, "weight": r.weight, "description": r.description}
-                        for r in guard.rules
-                    ]
-                    self.wfile.write(json.dumps(rules_data, indent=2).encode())
-                else:
-                    self.send_response(404)
-                    self.end_headers()
-
-            def log_message(self, format: str, *args: object) -> None:
-                pass  # Suppress access logs
-
-        server = http.server.HTTPServer((args.host, args.port), PicoWatchHandler)
-        print(f"Listening on http://{args.host}:{args.port}", file=sys.stderr)
-        print(f"  GET /v1/health   — Health check", file=sys.stderr)
-        print(f"  GET /metrics      — Prometheus metrics", file=sys.stderr)
-        print(f"  GET /v1/rules     — List active rules", file=sys.stderr)
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nShutting down.", file=sys.stderr)
-        sys.exit(0)
+    run_server(config=config, host=args.host, port=args.port)
 
 
 def _rules(args: argparse.Namespace, config: PicoWatchConfig) -> None:
@@ -200,7 +159,7 @@ def main(argv: list[str] | None = None) -> None:
     vo.add_argument("--output", "-o", required=True, help="LLM output file")
 
     # serve
-    se = sub.add_parser("serve", help="Start telemetry daemon")
+    se = sub.add_parser("serve", help="Start HTTP daemon (FastAPI + uvicorn)")
     se.add_argument("--host", default="0.0.0.0", help="Bind host")
     se.add_argument("--port", "-p", type=int, default=8766, help="Bind port")
 

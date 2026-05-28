@@ -90,7 +90,7 @@ class OutputGuard:
 
         # Final score
         score = round(total_score, 6)
-        valid = score < self._config.threshold_block and len(violations) == 0 or score < 0.4
+        valid = score < self._config.threshold_block and len(violations) == 0
 
         duration_ms = round((time.perf_counter() - start) * 1000, 3)
 

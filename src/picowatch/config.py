@@ -44,6 +44,7 @@ class PicoWatchConfig:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     admin_port: int = DEFAULT_ADMIN_PORT
+    api_key: str | None = None  # If set, POST endpoints require this key
 
     # Corpus
     corpus_version: str = DEFAULT_CORPUS_VERSION
@@ -66,5 +67,6 @@ class PicoWatchConfig:
             host=os.environ.get("PICOWATCH_HOST", DEFAULT_HOST),
             port=int(os.environ.get("PICOWATCH_PORT", str(DEFAULT_PORT))),
             admin_port=int(os.environ.get("PICOWATCH_ADMIN_PORT", str(DEFAULT_ADMIN_PORT))),
+            api_key=os.environ.get("PICOWATCH_API_KEY"),
             corpus_version=os.environ.get("PICOWATCH_CORPUS_VERSION", DEFAULT_CORPUS_VERSION),
         )
