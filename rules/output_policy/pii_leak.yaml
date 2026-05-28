@@ -1,0 +1,36 @@
+# PicoWatch Default Output Policy Rules — PII Leak category
+
+- id: out_pii_ssn
+  category: pii_leak
+  weight: 0.95
+  pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+  description: "SSN pattern detection"
+  normalization: [unicode, whitespace]
+
+- id: out_pii_credit_card
+  category: pii_leak
+  weight: 0.95
+  pattern: "\\b(?:\\d{4}[\\s-]?){3}\\d{4}\\b"
+  description: "Credit card number pattern"
+  normalization: [unicode, whitespace]
+
+- id: out_pii_email
+  category: pii_leak
+  weight: 0.8
+  pattern: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b"
+  description: "Email address pattern"
+  normalization: [unicode, whitespace]
+
+- id: out_pii_phone
+  category: pii_leak
+  weight: 0.75
+  pattern: "\\b(?:\\+?1[-.]\\s?)?\\(?\\d{3}\\)?[-.]?\\d{3}[-.]?\\d{4}\\b"
+  description: "Phone number pattern (US format)"
+  normalization: [unicode, whitespace]
+
+- id: out_pii_api_key
+  category: pii_leak
+  weight: 0.9
+  pattern: "(?:AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[0-9A-Z]{16}|(?:sk|pk|rk)_[a-zA-Z0-9]{20,}|AIza[0-9A-Za-z_-]{35}|ghp_[a-zA-Z0-9]{36}"
+  description: "API key patterns (AWS, OpenAI, GCP, GitHub)"
+  normalization: [unicode, whitespace]

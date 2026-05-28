@@ -1,0 +1,57 @@
+# === Secrets & Credentials ===
+*.pem
+*.key
+*_token*
+*.env
+.env.*
+.envrc
+credentials*
+secrets*
+**/secrets/**
+**/.github_pat*
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+.eggs/
+*.so
+venv/
+.venv/
+env/
+.cache/
+
+# === IDE & Editor ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# === Testing & Coverage ===
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# === Database ===
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# === Logs ===
+*.log
+
+# === Node (may have JS tooling) ===
+node_modules/

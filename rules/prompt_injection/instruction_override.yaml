@@ -1,0 +1,44 @@
+# PicoWatch Default Prompt Injection Rules — Instruction Override category
+# ADR-003: Deterministic rule engine with normalization pipeline
+
+- id: inj_override_ignore
+  category: instruction_override
+  weight: 0.9
+  pattern: "ignore\\s+(?:all\\s+)?(?:previous|prior|above|earlier)\\s+(?:instructions?|rules?|prompts?)"
+  description: "Direct instruction override — 'ignore previous instructions'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_override_forget
+  category: instruction_override
+  weight: 0.85
+  pattern: "forget\\s+(?:all\\s+)?(?:previous|prior|above|earlier)\\s+(?:instructions?|rules?|context)"
+  description: "Instruction override — 'forget previous instructions'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_override_disregard
+  category: instruction_override
+  weight: 0.85
+  pattern: "disregard\\s+(?:all\\s+)?(?:previous|above)\\s+(?:instructions?|rules)"
+  description: "Instruction override — 'disregard previous instructions'"
+  normalization: [unicode, whitespace]
+
+- id: inj_override_new_instruction
+  category: instruction_override
+  weight: 0.8
+  pattern: "new\\s+(?:instruction|rule|directive)\\s*:\\s*(?!.*(?:joke|game|story))"
+  description: "New instruction injection — 'new instruction: ...'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_override_system_override
+  category: instruction_override
+  weight: 0.9
+  pattern: "(?:system|admin|root)\\s+(?:override|instruction|prompt)\\s*[:=]"
+  description: "System override attempt — 'system override:'"
+  normalization: [unicode, whitespace]
+
+- id: inj_format_breakout
+  category: instruction_override
+  weight: 0.75
+  pattern: "\\]\\]\\s*(?:now|ignore|forget)|```(?:sql|python|bash)\\s*.*(?:rm|DROP|exec)"
+  description: "Format breakout — closing brackets followed by override or code injection"
+  normalization: [unicode, whitespace]
