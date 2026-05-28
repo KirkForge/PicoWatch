@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "picowatch"
+version = "0.1.0"
+description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability for the Shogun platform"
+readme = "README.md"
+license = {text = "KirkForge Personal Use License"}
+requires-python = ">=3.10"
+authors = [{name = "Henrik Kirk", email = "kirk@kirkforge.dev"}]
+maintainers = [{name = "KirkForge", email = "kirk@kirkforge.dev"}]
+keywords = [
+    "llm",
+    "security",
+    "prompt-injection",
+    "output-validation",
+    "telemetry",
+    "observability",
+    "opentelemetry",
+    "defense",
+    "shogun",
+    "picowatch",
+    "supply-chain",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: Free For Educational Use",
+    "License :: Free For Home Use",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Environment :: Console",
+    "Framework :: Pytest",
+    "Typing :: Typed",
+    "Topic :: Security",
+]
+
+dependencies = []
+
+[project.optional-dependencies]
+otel = [
+    "opentelemetry-api>=1.20",
+    "opentelemetry-sdk>=1.20",
+    "opentelemetry-exporter-otlp>=1.20",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.8",
+]
+
+[project.scripts]
+picowatch = "picowatch.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
