@@ -1,6 +1,6 @@
 """PicoWatch Config tests."""
 
-from picowatch.config import PicoWatchConfig, DEFAULT_THRESHOLD_BLOCK, DEFAULT_THRESHOLD_WARN
+from picowatch.config import DEFAULT_THRESHOLD_BLOCK, DEFAULT_THRESHOLD_WARN, PicoWatchConfig
 
 
 class TestConfig:

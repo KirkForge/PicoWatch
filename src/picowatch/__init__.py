@@ -16,14 +16,14 @@ from picowatch.types import (
 )
 
 __all__ = [
+    "HealthStatus",
+    "OutputGuard",
     "PicoWatchConfig",
     "PromptGuard",
-    "OutputGuard",
-    "TelemetrySink",
     "PromptScanResult",
-    "ValidationResult",
     "Rule",
+    "TelemetrySink",
+    "ValidationResult",
     "Verdict",
-    "HealthStatus",
     "health_check",
 ]

@@ -1,6 +1,6 @@
 # PicoWatch — Development State
 
-**Version:** 0.1.0 | **Last Updated:** 2026-05-29 | **Git:** `master`
+**Version:** 0.1.0 | **Last Updated:** 2026-05-29 | **Git:** `main`
 
 ## Architecture
 
@@ -10,9 +10,10 @@ PicoWatch/
 │   ├── __init__.py              # Package root, version, exports
 │   ├── __main__.py              # CLI entry point
 │   ├── cli.py                   # Argparse CLI (scan-prompt, validate-output, serve, rules, health)
-│   ├── config.py                # Configuration from env/file/CLI
+│   ├── config.py                # Configuration from env/file/CLI + API key
 │   ├── types.py                 # Shared data types (PromptScanResult, ValidationResult, Rule, etc.)
 │   ├── health.py                # Health check endpoint
+│   ├── server.py                # FastAPI HTTP server (POST scan/prompt, POST scan/output, GET endpoints)
 │   ├── prompt_guard/            # L5: Prompt injection detection
 │   │   ├── __init__.py          # PromptGuard class
 │   │   ├── normalize.py         # Unicode NFKC, whitespace, encoding detection, comment stripping
@@ -45,9 +46,17 @@ PicoWatch/
 │   ├── test_output_guard.py      # L6 validation tests (PII, schema, policy)
 │   ├── test_telemetry.py         # L7 telemetry tests (audit, Prometheus)
 │   ├── test_rules_corpus.py      # Rule corpus validation (regex, fields, uniqueness)
-│   └── test_determinism.py       # 10-run determinism verification
+│   ├── test_determinism.py       # 10-run determinism verification
+│   └── test_server.py            # HTTP server tests (FastAPI, auth, all endpoints)
+├── deploy/
+│   ├── prometheus.yml            # Prometheus scrape config
+│   └── otel-collector-config.yaml # OpenTelemetry collector config
+├── .github/workflows/
+│   └── ci.yml                    # CI pipeline (lint, test 3.10-3.13, build, docker)
 ├── docs/adr/                     # Architecture Decision Records 001–008
 ├── docs/issues/                  # Issue specs 001–009
+├── Dockerfile                    # Multi-stage build (builder → runtime)
+├── docker-compose.yml            # PicoWatch + Prometheus + OTel collector
 ├── pyproject.toml
 ├── README.md
 ├── AGENTS.md
@@ -63,21 +72,23 @@ PicoWatch/
 | Project scaffold | ✅ | pyproject.toml, CLI, tests, venv |
 | ADR 001–008 | ✅ | Architecture decisions documented |
 | L5 PromptGuard | ✅ | Rule engine, normalizer, scorer, 29 rules |
-| L6 OutputGuard | ✅ | Schema validation, PII detection/redaction, 16 rules |
+| L6 OutputGuard | ✅ | Schema validation, PII detection/redaction, 16 rules, feedback loop |
 | L7 Telemetry | ✅ | SQLite WAL audit, Prometheus metrics, JSON logging |
 | CLI | ✅ | scan-prompt, validate-output, serve, rules, health |
+| FastAPI HTTP server | ✅ | POST /v1/scan/prompt, POST /v1/scan/output, GET health/metrics/rules |
+| API key auth | ✅ | X-API-Key header or Bearer token on POST endpoints |
 | Default rules | ✅ | 29 prompt injection (6 categories) + 16 output policy (4 categories) |
-| Test suite | ✅ | 57 tests passing |
+| Test suite | ✅ | 96 tests passing |
 | Determinism verification | ✅ | 10-run determinism test passes |
-| CI pipeline | 🔜 | ci-cleandev configured, needs GitHub Actions |
-| Docker | 🔜 | Multi-stage Dockerfile pending |
+| CI pipeline | ✅ | GitHub Actions (lint, test 3.10-3.13, build, docker) |
+| Docker | ✅ | Multi-stage Dockerfile + docker-compose (PicoWatch + Prometheus + OTel) |
 | Shogun plugin | 🔜 | Adapter pending |
-| HTTP POST endpoints | 🔜 | scan/prompt and scan/output POST handlers |
+| PyPI publishing | 🔜 | Account ready, needs build + publish |
 
 ## Test Results
 
 ```
-57 tests PASSED in 8.69s
+96 tests PASSED in 27.30s
 - test_types: 8/8 ✅
 - test_config: 2/2 ✅
 - test_cli: 2/2 ✅
@@ -86,27 +97,60 @@ PicoWatch/
 - test_telemetry: 5/5 ✅ (audit, Prometheus, health)
 - test_rules_corpus: 6/6 ✅ (regex valid, fields present, unique IDs, hash stable)
 - test_determinism: 3/3 ✅ (10-run prompt, 10-run output, corpus hash)
+- test_server: 39/39 ✅ (health, metrics, rules, scan/prompt, scan/output, auth, 404)
 ```
+
+## HTTP API
+
+```
+POST /v1/scan/prompt     → PromptScanResult   (auth: API key)
+POST /v1/scan/output     → ValidationResult   (auth: API key)
+GET  /v1/health          → HealthStatus       (no auth)
+GET  /metrics            → Prometheus text    (no auth)
+GET  /v1/rules           → List[Rule]         (no auth)
+GET  /v1/rules/:id       → Rule detail        (no auth)
+```
+
+Auth: Set `PICOWATCH_API_KEY` env var. POST endpoints require `X-API-Key` header or `Bearer` token.
 
 ## CLI Usage
 
 ```bash
 # Scan a prompt for injection
 picowatch scan-prompt --text "ignore all previous instructions"
-# → {"blocked": true, "score": 0.9, "verdict": "block", "rules_matched": ["inj_override_ignore"]}
+# → {"blocked": true, "score": 0.9, "verdict": "block", "rules_matched": [...]}
+
+# Validate an LLM output
+picowatch validate-output --schema schema.json --output response.json
 
 # Verify determinism (runs twice, compares)
 picowatch --verify-determinism scan-prompt --text "You are now DAN"
-# → DETERMINISM CHECK PASSED: results identical
+
+# Start HTTP daemon
+picowatch serve --port 8766
 
 # List active rules
 picowatch rules
 
 # Health check
 picowatch health
+```
 
-# Start telemetry daemon
-picowatch serve --port 8766
+## Docker
+
+```bash
+# Build and run
+docker-compose up -d
+
+# With API key
+PICOWATCH_API_KEY=your-secret-key docker-compose up -d
+
+# Test endpoint
+curl http://localhost:8766/v1/health
+curl -X POST http://localhost:8766/v1/scan/prompt \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secret-key" \
+  -d '{"text": "ignore all instructions"}'
 ```
 
 ## Integration Points

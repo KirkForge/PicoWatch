@@ -1,14 +1,12 @@
 """PicoWatch PromptGuard tests."""
 
-import pytest
 from pathlib import Path
 
+from picowatch.config import PicoWatchConfig
 from picowatch.prompt_guard import PromptGuard
 from picowatch.prompt_guard.normalize import Normalizer
 from picowatch.prompt_guard.rules import RuleEngine
 from picowatch.prompt_guard.scorer import Scorer
-from picowatch.config import PicoWatchConfig
-
 
 RULES_DIR = Path(__file__).parent.parent / "rules"
 PROMPT_RULES_DIR = RULES_DIR / "prompt_injection"
@@ -24,14 +22,14 @@ class TestNormalizer:
     def test_unicode_normalization(self) -> None:
         """NFKC collapses homoglyphs and compatibility chars."""
         # Full-width ASCII normalizes to ASCII
-        assert "A" == self.norm.normalize_unicode("\uff21")
+        assert self.norm.normalize_unicode("\uff21") == "A"
         # Ligature fi normalizes to f+i
-        assert "fi" == self.norm.normalize_unicode("\ufb01")
+        assert self.norm.normalize_unicode("\ufb01") == "fi"
 
     def test_whitespace_normalization(self) -> None:
         """Collapse whitespace runs, normalize line endings."""
-        assert "hello world" == self.norm.normalize_whitespace("hello    world")
-        assert "hello\nworld" == self.norm.normalize_whitespace("hello\r\nworld")
+        assert self.norm.normalize_whitespace("hello    world") == "hello world"
+        assert self.norm.normalize_whitespace("hello\r\nworld") == "hello\nworld"
 
     def test_comment_stripping_html(self) -> None:
         """HTML comments are removed."""
@@ -126,7 +124,7 @@ class TestScorer:
         match2 = re.search("b", "b")
         assert match1 is not None
         assert match2 is not None
-        score, ids = scorer.score([(rule1, match1), (rule2, match2)], [rule1, rule2])
+        score, _ids = scorer.score([(rule1, match1), (rule2, match2)], [rule1, rule2])
         # max(0.9, (0.9+0.5)/2) = max(0.9, 0.7) = 0.9
         assert score == 0.9
 

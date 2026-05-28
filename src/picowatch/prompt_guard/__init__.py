@@ -14,8 +14,7 @@ from picowatch.prompt_guard.rules import RuleEngine
 from picowatch.prompt_guard.scorer import Scorer
 from picowatch.types import PromptScanResult, Rule
 
-
-__all__ = ["PromptGuard", "Normalizer", "RuleEngine", "Scorer"]
+__all__ = ["Normalizer", "PromptGuard", "RuleEngine", "Scorer"]
 
 
 class PromptGuard:

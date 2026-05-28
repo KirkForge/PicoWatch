@@ -11,7 +11,6 @@ from picowatch.config import PicoWatchConfig
 from picowatch.health import health_check
 from picowatch.output_guard import OutputGuard
 from picowatch.prompt_guard import PromptGuard
-from picowatch.telemetry import TelemetrySink
 
 
 def _scan_prompt(args: argparse.Namespace, config: PicoWatchConfig) -> None:
@@ -112,18 +111,23 @@ def _serve(args: argparse.Namespace, config: PicoWatchConfig) -> None:
         corpus_hash=guard.corpus_hash,
         corpus_version=guard.corpus_version,
     )
-    print(f"Health: {json.dumps({'healthy': h.healthy, 'rules_loaded': h.rules_loaded, 'corpus_hash': h.corpus_hash}, indent=2)}", file=sys.stderr)
+    health_info = {
+        "healthy": h.healthy,
+        "rules_loaded": h.rules_loaded,
+        "corpus_hash": h.corpus_hash,
+    }
+    print(f"Health: {json.dumps(health_info, indent=2)}", file=sys.stderr)
 
     auth_status = "enabled" if config.api_key else "disabled (set PICOWATCH_API_KEY to enable)"
     print(f"API key auth: {auth_status}", file=sys.stderr)
 
-    print(f"Endpoints:", file=sys.stderr)
-    print(f"  POST /v1/scan/prompt  — Scan prompt for injection", file=sys.stderr)
-    print(f"  POST /v1/scan/output  — Validate LLM output", file=sys.stderr)
-    print(f"  GET  /v1/health       — Health check", file=sys.stderr)
-    print(f"  GET  /metrics          — Prometheus metrics", file=sys.stderr)
-    print(f"  GET  /v1/rules         — List active rules", file=sys.stderr)
-    print(f"  GET  /v1/rules/:id     — Rule detail", file=sys.stderr)
+    print("Endpoints:", file=sys.stderr)
+    print("  POST /v1/scan/prompt  — Scan prompt for injection", file=sys.stderr)
+    print("  POST /v1/scan/output  — Validate LLM output", file=sys.stderr)
+    print("  GET  /v1/health       — Health check", file=sys.stderr)
+    print("  GET  /metrics          — Prometheus metrics", file=sys.stderr)
+    print("  GET  /v1/rules         — List active rules", file=sys.stderr)
+    print("  GET  /v1/rules/:id     — Rule detail", file=sys.stderr)
 
     run_server(config=config, host=args.host, port=args.port)
 
@@ -164,10 +168,10 @@ def main(argv: list[str] | None = None) -> None:
     se.add_argument("--port", "-p", type=int, default=8766, help="Bind port")
 
     # rules
-    rl = sub.add_parser("rules", help="List active defense rules")
+    sub.add_parser("rules", help="List active defense rules")
 
     # health
-    he = sub.add_parser("health", help="Show health status")
+    sub.add_parser("health", help="Show health status")
 
     args = parser.parse_args(argv)
     config = PicoWatchConfig.from_env()

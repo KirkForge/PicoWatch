@@ -1,5 +1,7 @@
 """PicoWatch CLI tests."""
 
+import contextlib
+
 from picowatch.cli import main
 
 
@@ -15,7 +17,5 @@ def test_cli_no_args_shows_help(capsys) -> None:
 
 def test_cli_health() -> None:
     """picowatch health returns status."""
-    try:
+    with contextlib.suppress(SystemExit):
         main(["health"])
-    except SystemExit:
-        pass  # May fail if rules dir not found in test

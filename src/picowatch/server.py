@@ -23,7 +23,6 @@ from picowatch.prompt_guard import PromptGuard
 from picowatch.telemetry import TelemetrySink
 from picowatch.types import PromptScanResult
 
-
 # ─── Request/Response Models ──────────────────────────────────────────────
 
 class PromptScanRequest(BaseModel):
@@ -38,7 +37,11 @@ class OutputScanRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
     output: str = Field(..., min_length=1, description="LLM output text to validate")
-    json_schema: dict[str, Any] | None = Field(default=None, alias="schema", description="Optional JSON Schema for structural validation")
+    json_schema: dict[str, Any] | None = Field(
+        default=None,
+        alias="schema",
+        description="Optional JSON Schema for structural validation",
+    )
     prompt_result: dict[str, Any] | None = Field(default=None, description="Optional L5 scan result for feedback loop")
     request_id: str | None = Field(default=None, description="Optional request ID for telemetry correlation")
 
@@ -83,9 +86,8 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
         provided_key = ""
         if x_api_key:
             provided_key = x_api_key
-        elif authorization:
-            if authorization.lower().startswith("bearer "):
-                provided_key = authorization[7:].strip()
+        elif authorization and authorization.lower().startswith("bearer "):
+            provided_key = authorization[7:].strip()
 
         if not provided_key or not secrets.compare_digest(provided_key, api_key):
             raise HTTPException(status_code=401, detail="Invalid or missing API key")

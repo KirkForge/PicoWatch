@@ -1,11 +1,12 @@
-from __future__ import annotations
-
 """L6 Output Guard — deterministic output validation.
 
 Schema check → Content policy → PII scan → Format guard → Verdict.
 Same output + same rules + same config = same verdict. Always.
 """
 
+from __future__ import annotations
+
+import json
 import re
 import time
 from pathlib import Path
@@ -56,7 +57,8 @@ class OutputGuard:
         Args:
             output: The LLM output text to validate.
             schema: Optional JSON Schema for structural validation.
-            prompt_result: Optional L5 scan result — flagged prompts get stricter validation.
+            prompt_result: Optional L5 scan result — flagged prompts
+                get stricter validation.
 
         Returns:
             ValidationResult with valid, score, violations, redacted, etc.
@@ -75,7 +77,7 @@ class OutputGuard:
         normalized = self._normalizer.normalize(output)
         matches = self._engine.evaluate(normalized)
         if matches:
-            for rule, match in matches:
+            for rule, _match in matches:
                 violations.append(rule.id)
                 total_score = max(total_score, rule.weight)
 
@@ -111,9 +113,6 @@ class OutputGuard:
         """
         violations: list[str] = []
 
-        # Try to parse as JSON
-        import json
-
         try:
             data = json.loads(output)
         except json.JSONDecodeError:
@@ -122,13 +121,12 @@ class OutputGuard:
 
         # Basic type checking from schema
         schema_type = schema.get("type")
-        if schema_type:
-            if schema_type == "object" and not isinstance(data, dict):
-                violations.append("out_fmt_type_mismatch")
-            elif schema_type == "array" and not isinstance(data, list):
-                violations.append("out_fmt_type_mismatch")
-            elif schema_type == "string" and not isinstance(data, str):
-                violations.append("out_fmt_type_mismatch")
+        if schema_type and (
+            (schema_type == "object" and not isinstance(data, dict))
+            or (schema_type == "array" and not isinstance(data, list))
+            or (schema_type == "string" and not isinstance(data, str))
+        ):
+            violations.append("out_fmt_type_mismatch")
 
         # Required fields
         required = schema.get("required", [])
@@ -151,13 +149,17 @@ class OutputGuard:
             redacted = ssn_pattern.sub("[SSN-REDACTED]", redacted)
 
         # Email pattern
-        email_pattern = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+        email_pattern = re.compile(
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
+        )
         if email_pattern.search(redacted):
             violations.append("out_pii_email")
             redacted = email_pattern.sub("[EMAIL-REDACTED]", redacted)
 
         # Phone pattern (US)
-        phone_pattern = re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")
+        phone_pattern = re.compile(
+            r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
+        )
         if phone_pattern.search(redacted):
             violations.append("out_pii_phone")
             redacted = phone_pattern.sub("[PHONE-REDACTED]", redacted)

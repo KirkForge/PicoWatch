@@ -1,12 +1,12 @@
 """PicoWatch rules corpus validation tests."""
 
+import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 from picowatch.prompt_guard.rules import RuleEngine
-from picowatch.types import Rule
-
 
 RULES_DIR = Path(__file__).parent.parent / "rules"
 
@@ -26,7 +26,6 @@ class TestRulesCorpus:
 
     def test_all_rules_have_valid_regex(self) -> None:
         """All rule patterns compile as valid regex."""
-        import re
         all_rules_dirs = [
             RULES_DIR / "prompt_injection",
             RULES_DIR / "output_policy",

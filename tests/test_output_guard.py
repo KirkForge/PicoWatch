@@ -1,11 +1,9 @@
 """PicoWatch OutputGuard tests."""
 
-import pytest
 from pathlib import Path
 
-from picowatch.output_guard import OutputGuard
 from picowatch.config import PicoWatchConfig
-
+from picowatch.output_guard import OutputGuard
 
 RULES_DIR = Path(__file__).parent.parent / "rules"
 OUTPUT_RULES_DIR = RULES_DIR / "output_policy"

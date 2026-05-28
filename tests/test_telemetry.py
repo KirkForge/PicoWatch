@@ -1,12 +1,9 @@
 """PicoWatch Telemetry tests."""
 
-import os
-import tempfile
-from pathlib import Path
 
-from picowatch.telemetry import TelemetrySink, TelemetryConfig
+from picowatch.telemetry import TelemetryConfig, TelemetrySink
 from picowatch.telemetry.metrics import PrometheusMetrics
-from picowatch.types import PromptScanResult, ValidationResult, Verdict
+from picowatch.types import PromptScanResult, ValidationResult
 
 
 class TestTelemetrySink:

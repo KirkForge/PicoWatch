@@ -67,7 +67,7 @@ class TestPromptScanResult:
         )
         try:
             result.blocked = True  # type: ignore
-            assert False, "Should raise FrozenInstanceError"
+            raise AssertionError("Should raise FrozenInstanceError")
         except AttributeError:
             pass
 
@@ -82,7 +82,7 @@ class TestRule:
                 pattern="test",
                 description="test",
             )
-            assert False, "Should raise ValueError"
+            raise AssertionError("Should raise ValueError")
         except ValueError:
             pass
 

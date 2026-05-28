@@ -63,7 +63,12 @@ class PicoWatchConfig:
             max_prompt_size=int(os.environ.get("PICOWATCH_MAX_PROMPT_SIZE", str(DEFAULT_MAX_PROMPT_SIZE))),
             schema_dir=Path(p) if (p := os.environ.get("PICOWATCH_SCHEMA_DIR")) else None,
             otel_endpoint=os.environ.get("PICOWATCH_OTEL_ENDPOINT"),
-            audit_retention_days=int(os.environ.get("PICOWATCH_AUDIT_RETENTION_DAYS", str(DEFAULT_AUDIT_RETENTION_DAYS))),
+            audit_retention_days=int(
+                os.environ.get(
+                    "PICOWATCH_AUDIT_RETENTION_DAYS",
+                    str(DEFAULT_AUDIT_RETENTION_DAYS),
+                )
+            ),
             host=os.environ.get("PICOWATCH_HOST", DEFAULT_HOST),
             port=int(os.environ.get("PICOWATCH_PORT", str(DEFAULT_PORT))),
             admin_port=int(os.environ.get("PICOWATCH_ADMIN_PORT", str(DEFAULT_ADMIN_PORT))),

@@ -159,7 +159,11 @@ class TelemetrySink:
         try:
             conn = sqlite3.connect(str(self._config.audit_db_path))
             conn.execute(
-                "INSERT INTO audit_log (timestamp, event_type, request_id, score, verdict, rules, details) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                """
+                INSERT INTO audit_log
+                    (timestamp, event_type, request_id, score, verdict, rules, details)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
                 (
                     datetime.now(timezone.utc).isoformat(),
                     event_type,
