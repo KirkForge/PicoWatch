@@ -1,6 +1,6 @@
 # PicoWatch — Development State
 
-**Version:** 0.5.0 | **Last Updated:** 2026-05-29 | **Git:** `main`
+**Version:** 0.6.0 | **Last Updated:** 2026-05-29 | **Git:** `master`
 
 ## Architecture
 
@@ -50,6 +50,9 @@ PicoWatch/
 │   ├── test_rules_corpus.py      # Rule corpus validation (regex, fields, uniqueness)
 │   ├── test_determinism.py       # 10-run determinism verification
 │   ├── test_server.py            # HTTP server tests (FastAPI, auth, all endpoints)
+│   ├── test_ratelimit.py         # Rate limiter tests (sliding window, per-IP)
+│   ├── test_otel.py              # OpenTelemetry tracing tests (init, spans, no-op)
+│   ├── test_server_integration.py # Server integration tests (dual-port, auth, determinism)
 │   └── test_shogun.py            # Shogun plugin tests (init, scan, validate, events, determinism)
 ├── deploy/
 │   ├── prometheus.yml            # Prometheus scrape config
@@ -81,24 +84,24 @@ PicoWatch/
 | FastAPI HTTP server | ✅ | POST /v1/scan/prompt, POST /v1/scan/output, GET health/metrics/rules |
 | API key auth | ✅ | X-API-Key header or Bearer token on POST endpoints |
 | Default rules | ✅ | 59 prompt injection (6 categories) + 32 output policy (4 categories) = 91 total |
-| Test suite | ✅ | 191 tests passing |
+| Test suite | ✅ | 236 tests passing |
 | Determinism verification | ✅ | 10-run determinism test passes |
 | CI pipeline | ✅ | GitHub Actions (lint, test 3.10-3.13, build, docker) |
 | Docker | ✅ | Multi-stage Dockerfile + docker-compose (PicoWatch + Prometheus + OTel) |
 | Shogun plugin | ✅ | PicoWatchPlugin + WatchGuard protocol, event bus, 17 tests |
-| OTel tracing | ✅ | init_tracing(), trace_prompt_scan(), trace_output_validation() in server endpoints |
-| Admin port (ADR-007) | ✅ | Separate 9091 port for health/metrics/rules |
+| OTel tracing | ✅ | init_tracing(), trace_prompt_scan(), trace_output_validation() in server endpoints; 16 OTel tests |
+| Admin port (ADR-007) | ✅ | Separate 9091 port for health/metrics/rules; integration tests |
 | Rate limiting (ADR-008) | ✅ | Per-IP sliding window, 429 + Retry-After |
 | TOML config file | ✅ | picowatch.toml search path: ., ~/.config/, /etc/ |
 | Request ID auto-gen (ADR-002) | ✅ | Auto-generates req-{uuid} if not provided |
 | Prometheus histograms (ADR-002) | ✅ | picowatch_prompt_score, picowatch_scan_duration_seconds |
 | mypy strict | ✅ | 18 source files, 0 errors |
-| PyPI publishing | 🔜 | Account ready, needs build + publish |
+| PyPI publishing | ✅ | Trusted Publishing workflow in `.github/workflows/publish.yml` |
 
 ## Test Results
 
 ```
-191 tests PASSED in 73.17s
+236 tests PASSED in 73.17s
 - test_types: 10/10 ✅
 - test_config: 8/8 ✅
 - test_cli: 2/2 ✅
@@ -108,8 +111,10 @@ PicoWatch/
 - test_rules_corpus: 6/6 ✅
 - test_determinism: 3/3 ✅
 - test_ratelimit: 10/10 ✅
-- test_server: 53/53 ✅
+- test_server: 55/55 ✅
 - test_shogun: 17/17 ✅
+- test_otel: 16/16 ✅
+- test_server_integration: 29/29 ✅
 ```
 
 ## HTTP API

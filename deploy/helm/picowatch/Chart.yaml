@@ -2,8 +2,8 @@ apiVersion: v2
 name: picowatch
 description: PicoWatch — LLM defender with telemetry (prompt injection detection, output validation, observability)
 type: application
-version: 0.5.0
-appVersion: "0.5.0"
+version: 0.6.0
+appVersion: "0.6.0"
 home: https://github.com/KirkForge/PicoWatch
 sources:
   - https://github.com/KirkForge/PicoWatch

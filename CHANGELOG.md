@@ -151,3 +151,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - `output_guard/__init__.py`: Typed `dict` parameters as `dict[str, Any]`
 - `prompt_guard/__init__.py`: Typed `context` parameter as `dict[str, Any]`
 - Total tests: 191 (was 159)
+
+## [0.6.0] - 2026-05-29
+
+### Added
+- **OTel integration tests** (`tests/test_otel.py`): 16 tests for `init_tracing()`, `trace_prompt_scan()`, `trace_output_validation()`, no-op without init, span creation with/without model, and error status for blocked/invalid results
+- **Server integration tests** (`tests/test_server_integration.py`): 29 tests covering full request flow, dual-port serving (API/admin separation), auth enforcement (API key + Bearer token), rate limiting integration, and determinism verification via HTTP
+- **Helm chart validation**: `helm lint` and `helm template` pass cleanly
+- **SBOM generation**: `scripts/generate_sbom.py` tested and produces valid CycloneDX JSON (52 components)
+- **Version bump**: 0.5.0 → 0.6.0 across all files (`__init__.py`, `otel.py`, `pyproject.toml`, `Chart.yaml`, `values.yaml`, `test_shogun.py`)
+- Total tests: 236 (was 191)
+
+### Changed
+- Version bumped to 0.6.0 in `src/picowatch/__init__.py`, `src/picowatch/telemetry/otel.py`, `pyproject.toml`, Helm chart, and test assertions
+- Updated `STATE.md` with new test counts and architecture tree
