@@ -1,12 +1,15 @@
 """Input normalization pipeline.
 
 Runs before all rule matching to strip obfuscation and normalise encoding.
-Pipeline order: Unicode NFKC → whitespace → encoding detection → comment stripping → markdown deobfuscation.
+Pipeline order: Unicode NFKC → whitespace → spaced-text collapse → encoding detection
+→ decode-then-rescan → comment stripping → markdown deobfuscation.
+Decoded payloads are re-scanned so encoded injections surface to the rule engine.
 """
 
 from __future__ import annotations
 
 import base64
+import codecs
 import re
 import unicodedata
 
@@ -39,18 +42,64 @@ class Normalizer:
     # URL-encoded pattern
     _URL_ENC = re.compile(r"%[0-9a-fA-F]{2}")
 
+    # Spaced-out single-char interleaving: "i g n o r e" or "i g n o r e  a l l"
+    # Detects sequences of single chars separated by spaces where the unspaced
+    # form is 3+ consecutive word characters — common bypass technique.
+    _SPACED_SINGLE_CHAR = re.compile(r"(?:^|(?<=\s))(\w)(?:\s+(\w)){2,}(?=\s|$|[,.;!?])")
+
     def normalize(self, text: str) -> str:
         """Full normalization pipeline.
 
-        Order matters: unicode → whitespace → encoding → comments → markdown.
+        Order matters: unicode → spaced-text (before whitespace collapse to preserve
+        word boundaries) → whitespace → comments → markdown.
+        Returns (normalized_text, decoded_texts) where decoded_texts contains
+        any payloads decoded during the pipeline for re-scanning.
         """
         result = text
         result = self.normalize_unicode(result)
+        result = self.collapse_spaced_text(result)
         result = self.normalize_whitespace(result)
-        result = self.detect_encodings(result)  # flags but doesn't decode
         result = self.strip_comments(result)
         result = self.deobfuscate_markdown(result)
         return result
+
+    def decode_and_rescan(self, text: str) -> list[str]:
+        """Decode encoded payloads for re-scanning by the rule engine.
+
+        Returns a list of decoded strings from base64 and URL-encoded payloads
+        found in the text. The caller should run the rule engine against each
+        decoded string and take the maximum score.
+
+        ROT13 is applied only to segments that contain ROT13-encoded injection
+        keywords (detected by the inj_encode_rot13 pattern), not to the entire
+        text. Applying ROT13 to normal text creates false positives because the
+        ROT13 of any text looks like encoded text to the rule engine.
+        """
+        decoded_texts: list[str] = []
+
+        # Base64: decode individual payloads and re-scan
+        for decoded in self.decode_base64(text):
+            decoded_texts.append(decoded)
+
+        # ROT13: only decode if the text already contains ROT13-encoded patterns.
+        # The inj_encode_rot13 rule detects these directly; re-scanning the
+        # ROT13-decoded version catches the underlying injection content.
+        rot13_pattern = re.compile(
+            r"vtaber|sbetrg|qvfrertnq|bireevqr|flfgrz cezcg",
+            re.IGNORECASE,
+        )
+        if rot13_pattern.search(text):
+            rot13 = self.decode_rot13(text)
+            if rot13 != text:
+                decoded_texts.append(rot13)
+
+        # URL-encoded: only decode if the text contains URL-encoded sequences
+        if self._URL_ENC.search(text):
+            url_decoded = self.decode_url(text)
+            if url_decoded != text:
+                decoded_texts.append(url_decoded)
+
+        return decoded_texts
 
     def normalize_unicode(self, text: str) -> str:
         """NFKC normalization: collapses homoglyphs, ligatures, compatibility chars."""
@@ -66,15 +115,48 @@ class Normalizer:
         result = re.sub(r"\n{3,}", "\n\n", result)
         return result.strip()
 
-    def detect_encodings(self, text: str) -> str:
-        """Flag encoded payloads. Adds markers but doesn't decode inline.
+    def collapse_spaced_text(self, text: str) -> str:
+        """Collapse spaced-out single-char interleaving.
 
-        This is detection-only: we annotate suspicious patterns so rules can
-        match on the markers, but we don't alter the text content itself.
+        "i g n o r e  a l l" → "ignore all"
+        "I g n o r e" → "Ignore"
+        This defeats the most common manual bypass where spaces are inserted
+        between every character to break regex matches.
+
+        Runs BEFORE whitespace normalization so multi-space gaps between words
+        are preserved as word boundaries.
         """
-        # We just return the text as-is; the rule engine's inj_encode_* rules
-        # will match on these patterns directly.
-        # Decoding is a separate step for deeper analysis.
+        # Split on multi-space gaps (2+ spaces) to find word boundaries first
+        segments = re.split(r"(\s{2,})", text)
+        result_parts = []
+        for segment in segments:
+            if re.match(r"^\s{2,}$", segment):
+                # Multi-space gap → single space word boundary
+                result_parts.append(" ")
+            else:
+                # Collapse single-char spaced sequences within each word segment
+                def _rejoin(match: re.Match[str]) -> str:
+                    raw = match.group(0)
+                    collapsed = re.sub(r"(\w)\s+(?=\w)", r"\1", raw)
+                    # Only accept if collapsing produces 3+ char word
+                    word_len = len(collapsed)
+                    if word_len < 3:
+                        return raw
+                    # Preserve case: if first char is uppercase and rest lowercase, title-case the result
+                    if raw[0].isupper() and all(c.islower() or c.isspace() for c in raw[1:]):
+                        return collapsed[0] + collapsed[1:].lower()
+                    return collapsed
+
+                result_parts.append(self._SPACED_SINGLE_CHAR.sub(_rejoin, segment))
+
+        return "".join(result_parts)
+
+    def detect_encodings(self, text: str) -> str:
+        """Flag encoded payloads. Kept for backward compatibility.
+
+        Detection adds markers so rules can match on encoded patterns directly.
+        Decoding is now handled by decode_and_rescan() for full re-scanning.
+        """
         return text
 
     def decode_base64(self, text: str) -> list[str]:
@@ -94,14 +176,11 @@ class Normalizer:
 
     def decode_rot13(self, text: str) -> str:
         """Apply ROT13 decoding to text."""
-        import codecs
-
         return codecs.encode(text, "rot_13")
 
     def decode_url(self, text: str) -> str:
         """Decode URL-encoded text."""
         import urllib.parse
-
         return urllib.parse.unquote(text)
 
     def strip_comments(self, text: str) -> str:

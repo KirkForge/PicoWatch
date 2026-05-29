@@ -145,11 +145,15 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
             rules_loaded=len(prompt_guard.rules),
             corpus_hash=prompt_guard.corpus_hash,
             corpus_version=prompt_guard.corpus_version,
+            rules_expected=prompt_guard._engine.rules_expected,
+            load_errors=prompt_guard._engine.load_errors,
         )
         return {
             "healthy": h.healthy,
             "version": h.version,
             "rules_loaded": h.rules_loaded,
+            "rules_expected": prompt_guard._engine.rules_expected,
+            "rules_coverage": f"{len(prompt_guard.rules)}/{prompt_guard._engine.rules_expected}",
             "corpus_hash": h.corpus_hash,
             "corpus_version": h.corpus_version,
             "uptime_seconds": h.uptime_seconds,
@@ -320,11 +324,15 @@ def create_admin_app(config: PicoWatchConfig | None = None) -> FastAPI:
             rules_loaded=len(prompt_guard.rules),
             corpus_hash=prompt_guard.corpus_hash,
             corpus_version=prompt_guard.corpus_version,
+            rules_expected=prompt_guard._engine.rules_expected,
+            load_errors=prompt_guard._engine.load_errors,
         )
         return {
             "healthy": h.healthy,
             "version": h.version,
             "rules_loaded": h.rules_loaded,
+            "rules_expected": prompt_guard._engine.rules_expected,
+            "rules_coverage": f"{len(prompt_guard.rules)}/{prompt_guard._engine.rules_expected}",
             "corpus_hash": h.corpus_hash,
             "corpus_version": h.corpus_version,
             "uptime_seconds": h.uptime_seconds,

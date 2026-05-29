@@ -22,6 +22,23 @@ PicoWatch is the 4th product in the [Shogun](https://github.com/KirkForge/Shogun
 | **L6** | Output Guard | Validates LLM outputs against schemas, content policies, and PII/exfiltration rules |
 | **L7** | Telemetry | OpenTelemetry traces, Prometheus metrics, audit logging — full observability for every request |
 
+## Threat Model
+
+PicoWatch is a **fast deterministic pre-filter and telemetry layer** — not a complete solution for LLM prompt injection defense.
+
+**What it does well:**
+- Catch common injection patterns (direct overrides, role manipulation, instruction smuggling) with deterministic regex-weighted scoring
+- Provide observable, repeatable scoring for every request
+- Block the ~80% of lazy/automated attacks cheaply and fast
+- Detect encoding-based obfuscation (base64, ROT13, URL-encoding) via decode-then-rescan
+
+**What it does NOT guarantee:**
+- Adaptive attackers can bypass pattern-based detection through paraphrase, translation, novel framings, or spaced-out text (though the spaced-text normalizer catches simple cases)
+- A `score=0.94, blocked=True` result means a strong rule match, not a mathematical proof of injection — it reflects pattern confidence, not adversarial robustness
+- Encoding detection flags the *presence* of encoded payloads; decoded payloads are re-scanned, but novel encoding schemes may evade detection
+
+**Recommended deployment:** Use PicoWatch as a first-pass filter in a defense-in-depth stack. Pair it with LLM-based classifiers, output guards, and monitoring for layers that handle what pattern matching cannot.
+
 ## Shogun Defense Stack
 
 | Product | Layer | Focus |

@@ -57,6 +57,16 @@ class PromptGuard:
         """Corpus version string."""
         return self._config.corpus_version
 
+    @property
+    def rules_loaded(self) -> int:
+        """Number of rules successfully loaded (vs expected from YAML files)."""
+        return self._engine.rules_loaded
+
+    @property
+    def rules_expected(self) -> int:
+        """Number of rules expected from YAML files (before filtering)."""
+        return self._engine.rules_expected
+
     def check(self, text: str, context: dict[str, Any] | None = None) -> PromptScanResult:
         """Scan a prompt for injection patterns.
 
@@ -85,8 +95,15 @@ class PromptGuard:
         # Normalize input
         normalized = self._normalizer.normalize(text)
 
-        # Run rule engine
+        # Run rule engine on normalized text
         matches = self._engine.evaluate(normalized)
+
+        # Decode encoded payloads and re-scan for deeper analysis
+        decoded_texts = self._normalizer.decode_and_rescan(text)
+        for decoded in decoded_texts:
+            decoded_normalized = self._normalizer.normalize(decoded)
+            decoded_matches = self._engine.evaluate(decoded_normalized)
+            matches.extend(decoded_matches)
 
         # Score results
         score, matched_ids = self._scorer.score(matches, self._engine.rules)

@@ -11,20 +11,24 @@ def health_check(
     corpus_hash: str,
     corpus_version: str,
     uptime_seconds: float = 0.0,
+    rules_expected: int = 0,
+    load_errors: list[str] | None = None,
 ) -> HealthStatus:
     """Return health status for PicoWatch.
 
     Args:
-        rules_loaded: Number of defense rules loaded.
+        rules_loaded: Number of defense rules successfully loaded.
         corpus_hash: SHA-256 hash of rule corpus.
         corpus_version: Version string of rule corpus.
         uptime_seconds: Process uptime in seconds.
+        rules_expected: Number of rules expected from YAML files.
+        load_errors: Errors encountered during rule loading.
 
     Returns:
-        HealthStatus with healthy=True if rules are loaded.
+        HealthStatus with healthy=True if rules are loaded and coverage is complete.
     """
     return HealthStatus(
-        healthy=rules_loaded > 0,
+        healthy=rules_loaded > 0 and rules_loaded >= rules_expected,
         version=__version__,
         rules_loaded=rules_loaded,
         corpus_hash=corpus_hash,
