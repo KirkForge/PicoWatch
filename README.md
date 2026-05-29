@@ -1,10 +1,16 @@
 # PicoWatch 👁️
 
+![PicoWatch Banner](docs/banner.png)
+
 **LLM defender with telemetry — prompt injection detection, output validation, and observability.**
 
 [![CI](https://github.com/KirkForge/PicoWatch/actions/workflows/ci.yml/badge.svg)](https://github.com/KirkForge/PicoWatch)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
+[![Rules](https://img.shields.io/badge/rules-91-blue)](rules/)
+[![Tests](https://img.shields.io/badge/tests-159-green)](tests/)
 [![License: KirkForge](https://img.shields.io/badge/license-KirkForge%20Personal%20Use-orange)](LICENSE)
+[![KirkForge](https://img.shields.io/badge/org-KirkForge-blue)](https://github.com/KirkForge)
+[![Buy Me a Coffee](https://img.shields.io/badge/%E2%98%95-Buy%20Me%20a%20Coffee-yellow)](https://buymeacoffee.com/kirkforge)
 
 PicoWatch is the 4th product in the [Shogun](https://github.com/KirkForge/Shogun) security platform. It runs **standalone** or integrates into Shogun's Iron Dome firewall layer.
 

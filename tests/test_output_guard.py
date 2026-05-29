@@ -137,3 +137,115 @@ class TestOutputGuard:
         result = guard.validate("The server is at 8.8.8.8")
         # IP rule weight is 0.70, should trigger but may not block alone
         assert "out_pii_ip_address" in result.violations
+
+    def test_credit_card_detected_and_redacted(self) -> None:
+        """Credit card number is detected and redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("Card: 4111-1111-1111-1111")
+        assert "out_pii_credit_card" in result.violations
+        assert result.redacted is not None
+        assert "[CC-REDACTED]" in result.redacted
+
+    def test_passport_detected_and_redacted(self) -> None:
+        """Passport/national ID is detected and redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("Passport: AB1234567")
+        assert "out_pii_passport" in result.violations
+        assert result.redacted is not None
+        assert "[PASSPORT-REDACTED]" in result.redacted
+
+    def test_crypto_wallet_detected_and_redacted(self) -> None:
+        """Crypto wallet address is detected and redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("Send to 0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18")
+        assert "out_pii_crypto_wallet" in result.violations
+        assert result.redacted is not None
+        assert "[CRYPTO-WALLET-REDACTED]" in result.redacted
+
+    def test_oauth_token_detected_and_redacted(self) -> None:
+        """OAuth token is detected and redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("ya29.a0AfH6SMBxVeryLongTokenString1234567890")
+        assert "out_exfil_oauth_token" in result.violations
+        assert result.redacted is not None
+        assert "[OAUTH-TOKEN-REDACTED]" in result.redacted
+
+    def test_docker_secret_detected_and_redacted(self) -> None:
+        """Docker/K8s secret is detected and redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("KUBERNETES_SERVICE_HOST=10.0.0.1")
+        assert "out_exfil_docker_secret" in result.violations
+        assert result.redacted is not None
+        assert "[K8S-SECRET-REDACTED]" in result.redacted
+
+    def test_env_var_detected_and_redacted(self) -> None:
+        """Environment variable exfiltration is detected and redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCY")
+        assert "out_exfil_env_var" in result.violations
+        assert result.redacted is not None
+        assert "[ENV-VAR-REDACTED]" in result.redacted
+
+    def test_jwt_redacted(self) -> None:
+        """JWT token is redacted in output."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("Token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNrg0xMlYnJ3xL5w")
+        assert "out_pii_jwt" in result.violations
+        assert result.redacted is not None
+        assert "[JWT-REDACTED]" in result.redacted
+
+    def test_db_url_redacted(self) -> None:
+        """Database connection string is redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("postgres://user:pass@db.example.com:5432/prod")
+        assert "out_exfil_database_url" in result.violations
+        assert result.redacted is not None
+        assert "[DB-URL-REDACTED]" in result.redacted
+
+    def test_ssh_key_redacted(self) -> None:
+        """SSH private key is redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA\n-----END RSA PRIVATE KEY-----")
+        assert "out_exfil_ssh_key" in result.violations
+        assert result.redacted is not None
+        assert "[PRIVATE-KEY-REDACTED]" in result.redacted
+
+    def test_aws_arn_redacted(self) -> None:
+        """AWS ARN is redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("arn:aws:s3:::my-bucket/key")
+        assert "out_pii_aws_arn" in result.violations
+        assert result.redacted is not None
+        assert "[AWS-ARN-REDACTED]" in result.redacted
+
+    def test_internal_url_redacted(self) -> None:
+        """Internal URL is redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("The server is at 192.168.1.100")
+        assert "out_exfil_internal_url" in result.violations
+        assert result.redacted is not None
+        assert "[INTERNAL-URL-REDACTED]" in result.redacted
+
+    def test_multiple_pii_types(self) -> None:
+        """Multiple PII types in one output are all detected and redacted."""
+        config = PicoWatchConfig(rules_dir=RULES_DIR)
+        guard = OutputGuard(config=config)
+        result = guard.validate("SSN: 123-45-6789, email: test@example.com, key: AKIAIOSFODNN7EXAMPLE")
+        assert "out_pii_ssn" in result.violations
+        assert "out_pii_email" in result.violations
+        assert "out_pii_api_key" in result.violations
+        assert result.redacted is not None
+        assert "[SSN-REDACTED]" in result.redacted
+        assert "[EMAIL-REDACTED]" in result.redacted
+        assert "[API-KEY-REDACTED]" in result.redacted

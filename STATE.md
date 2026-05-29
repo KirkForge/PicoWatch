@@ -1,6 +1,6 @@
 # PicoWatch — Development State
 
-**Version:** 0.4.0 | **Last Updated:** 2026-05-29 | **Git:** `main`
+**Version:** 0.5.0 | **Last Updated:** 2026-05-29 | **Git:** `main`
 
 ## Architecture
 
@@ -75,13 +75,13 @@ PicoWatch/
 | Project scaffold | ✅ | pyproject.toml, CLI, tests, venv |
 | ADR 001–008 | ✅ | Architecture decisions documented |
 | L5 PromptGuard | ✅ | Rule engine, normalizer, scorer, 59 rules (6 categories) |
-| L6 OutputGuard | ✅ | Schema validation, PII detection/redaction, 32 rules, feedback loop |
+| L6 OutputGuard | ✅ | Schema validation, PII detection/redaction (16 patterns), 32 rules, feedback loop |
 | L7 Telemetry | ✅ | SQLite WAL audit, Prometheus metrics, JSON logging |
 | CLI | ✅ | scan-prompt, validate-output, serve, rules, health |
 | FastAPI HTTP server | ✅ | POST /v1/scan/prompt, POST /v1/scan/output, GET health/metrics/rules |
 | API key auth | ✅ | X-API-Key header or Bearer token on POST endpoints |
 | Default rules | ✅ | 59 prompt injection (6 categories) + 32 output policy (4 categories) = 91 total |
-| Test suite | ✅ | 147 tests passing |
+| Test suite | ✅ | 159 tests passing |
 | Determinism verification | ✅ | 10-run determinism test passes |
 | CI pipeline | ✅ | GitHub Actions (lint, test 3.10-3.13, build, docker) |
 | Docker | ✅ | Multi-stage Dockerfile + docker-compose (PicoWatch + Prometheus + OTel) |
@@ -91,12 +91,12 @@ PicoWatch/
 ## Test Results
 
 ```
-147 tests PASSED in 70.29s
+159 tests PASSED in 73.17s
 - test_types: 10/10 ✅
 - test_config: 2/2 ✅
 - test_cli: 2/2 ✅
 - test_prompt_guard: 45/45 ✅
-- test_output_guard: 17/17 ✅
+- test_output_guard: 29/29 ✅
 - test_telemetry: 6/6 ✅
 - test_rules_corpus: 6/6 ✅
 - test_determinism: 3/3 ✅

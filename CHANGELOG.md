@@ -4,7 +4,34 @@ All notable changes to PicoWatch will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.4.0] - 2026-05-29
+## [0.5.0] - 2026-05-29
+
+### Added
+- Expanded L6 OutputGuard PII redaction from 4 to 16 pattern types
+- `out_pii_credit_card` — credit card number detection + redaction
+- `out_pii_passport` — passport/national ID detection + redaction
+- `out_pii_jwt` — JWT token detection + redaction (code-level, not just rule match)
+- `out_pii_crypto_wallet` — cryptocurrency wallet address (ETH/BTC) detection + redaction
+- `out_pii_aws_arn` — AWS ARN detection + redaction (code-level)
+- `out_pii_ip_address` — IP address detection + redaction
+- `out_exfil_env_var` — environment variable exfiltration detection + redaction
+- `out_exfil_internal_url` — internal/private URL detection + redaction
+- `out_exfil_database_url` — database connection string detection + redaction (code-level)
+- `out_exfil_ssh_key` — SSH private key detection + redaction (full key block)
+- `out_exfil_oauth_token` — OAuth/access token (Google, GitHub, GitLab, Slack) detection + redaction
+- `out_exfil_docker_secret` — Docker/Kubernetes secret detection + redaction
+- OAuth token pattern expanded to support `ya29.` Google token format
+- Docker/K8s secret check ordered before env var check to avoid overlap
+- 12 new OutputGuard tests (credit card, passport, crypto wallet, OAuth, Docker/K8s, env var, JWT/DB/SSH/ARN redaction, multiple PII types)
+- Banner image (2048×768, dark security aesthetic with eye icon, L5/L6/L7 badges)
+- README badges: Rules (91), Tests (159), KirkForge org, Buy Me a Coffee
+- Total tests: 159 (was 147)
+
+### Changed
+- `_detect_pii()` method expanded from 4 to 16 redaction patterns
+- Pattern ordering optimized: highest-severity patterns (SSH keys, JWT, DB URLs) checked first
+- Docker/K8s secrets checked before generic env vars to avoid double-matching
+- Bumped version to 0.5.0
 
 ### Added
 - 20 new L5 PromptGuard rules (39 → 59 total) across all 6 categories

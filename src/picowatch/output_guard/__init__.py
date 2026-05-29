@@ -138,15 +138,118 @@ class OutputGuard:
         return violations
 
     def _detect_pii(self, text: str) -> tuple[str, list[str]]:
-        """Detect and redact PII in text. Returns (redacted_text, violation_ids)."""
+        """Detect and redact PII and exfiltration patterns in text.
+
+        Covers all YAML rule patterns that require redaction:
+        - PII: SSN, credit card, email, phone, API key, IP, passport, JWT, crypto wallet, AWS ARN
+        - Exfiltration: env vars, internal URLs, DB URLs, SSH keys, OAuth tokens, Docker/K8s secrets
+
+        Returns (redacted_text, violation_ids).
+        """
         violations: list[str] = []
         redacted = text
+
+        # Order matters: more specific patterns first to avoid partial matches
+
+        # SSH/private key (highest severity exfiltration)
+        ssh_key_pattern = re.compile(r"-----BEGIN\s+(?:RSA\s+)?(?:PRIVATE\s+)?KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?(?:PRIVATE\s+)?KEY-----")
+        if ssh_key_pattern.search(redacted):
+            violations.append("out_exfil_ssh_key")
+            redacted = ssh_key_pattern.sub("[PRIVATE-KEY-REDACTED]", redacted)
+
+        # JWT token
+        jwt_pattern = re.compile(r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
+        if jwt_pattern.search(redacted):
+            violations.append("out_pii_jwt")
+            redacted = jwt_pattern.sub("[JWT-REDACTED]", redacted)
+
+        # Database connection string
+        db_url_pattern = re.compile(r"(?:postgres|mysql|mongodb|redis|mssql)://[^\s]+")
+        if db_url_pattern.search(redacted):
+            violations.append("out_exfil_database_url")
+            redacted = db_url_pattern.sub("[DB-URL-REDACTED]", redacted)
+
+        # OAuth/access tokens (Google, GitHub, GitLab, Slack)
+        oauth_pattern = re.compile(
+            r"(?:ya29[.\-_]|ghp_|gho_|github_pat_|glpat-|gitlab-[a-z]+-token|xox[bpas]-)[A-Za-z0-9_.\-]{20,}"
+        )
+        if oauth_pattern.search(redacted):
+            violations.append("out_exfil_oauth_token")
+            redacted = oauth_pattern.sub("[OAUTH-TOKEN-REDACTED]", redacted)
+
+        # AWS ARN
+        arn_pattern = re.compile(r"arn:aws[a-z-]*:[a-z0-9-]+:[a-z0-9-]*:\d*:[^\s]+")
+        if arn_pattern.search(redacted):
+            violations.append("out_pii_aws_arn")
+            redacted = arn_pattern.sub("[AWS-ARN-REDACTED]", redacted)
+
+        # API key patterns (AWS, OpenAI, GCP, GitHub)
+        api_key_pattern = re.compile(
+            r"(?:AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[0-9A-Z]{16}"
+            r"|(?:sk|pk|rk)_[a-zA-Z0-9]{20,}"
+            r"|AIza[0-9A-Za-z_-]{35}"
+            r"|ghp_[a-zA-Z0-9]{36}"
+        )
+        if api_key_pattern.search(redacted):
+            violations.append("out_pii_api_key")
+            redacted = api_key_pattern.sub("[API-KEY-REDACTED]", redacted)
+
+        # Credit card number
+        cc_pattern = re.compile(r"\b(?:\d{4}[\s-]?){3}\d{4}\b")
+        if cc_pattern.search(redacted):
+            violations.append("out_pii_credit_card")
+            redacted = cc_pattern.sub("[CC-REDACTED]", redacted)
 
         # SSN pattern
         ssn_pattern = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
         if ssn_pattern.search(redacted):
             violations.append("out_pii_ssn")
             redacted = ssn_pattern.sub("[SSN-REDACTED]", redacted)
+
+        # Passport/national ID
+        passport_pattern = re.compile(r"\b[A-Z]{1,2}\d{6,9}\b")
+        if passport_pattern.search(redacted):
+            violations.append("out_pii_passport")
+            redacted = passport_pattern.sub("[PASSPORT-REDACTED]", redacted)
+
+        # Cryptocurrency wallet address (ETH/BTC)
+        crypto_pattern = re.compile(
+            r"(?:0x)?[0-9a-fA-F]{40}|[13][0-9a-zA-Z]{25,34}|bc1[qQ][0-9a-zA-Z]{39,59}"
+        )
+        if crypto_pattern.search(redacted):
+            violations.append("out_pii_crypto_wallet")
+            redacted = crypto_pattern.sub("[CRYPTO-WALLET-REDACTED]", redacted)
+
+        # Internal/private URL (must check before generic IP)
+        internal_url_pattern = re.compile(
+            r"(?:https?://)?(?:10\.\d{1,3}|172\.(?:1[6-9]|2[0-9]|3[01])|192\.168)\.\d{1,3}\.\d{1,3}"
+            r"|localhost|127\.0\.0\.1|0\.0\.0\.0"
+        )
+        if internal_url_pattern.search(redacted):
+            violations.append("out_exfil_internal_url")
+            redacted = internal_url_pattern.sub("[INTERNAL-URL-REDACTED]", redacted)
+
+        # IP address (public or private — after internal URL check)
+        ip_pattern = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+        if ip_pattern.search(redacted):
+            violations.append("out_pii_ip_address")
+            redacted = ip_pattern.sub("[IP-REDACTED]", redacted)
+
+        # Docker/Kubernetes secret exfiltration (more specific — before env var)
+        docker_secret_pattern = re.compile(
+            r"(?:DOCKER_|KUBERNETES_|K8S_)[A-Z_]+\s*=\s*[^\s]+"
+        )
+        if docker_secret_pattern.search(redacted):
+            violations.append("out_exfil_docker_secret")
+            redacted = docker_secret_pattern.sub("[K8S-SECRET-REDACTED]", redacted)
+
+        # Environment variable exfiltration
+        env_var_pattern = re.compile(
+            r"(?:AWS_|GCP_|AZURE_|DATABASE_|SECRET_|API_|TOKEN_|PASSWORD_|PRIVATE_)[A-Z_]*\s*=\s*[^\s]+"
+        )
+        if env_var_pattern.search(redacted):
+            violations.append("out_exfil_env_var")
+            redacted = env_var_pattern.sub("[ENV-VAR-REDACTED]", redacted)
 
         # Email pattern
         email_pattern = re.compile(
@@ -163,16 +266,5 @@ class OutputGuard:
         if phone_pattern.search(redacted):
             violations.append("out_pii_phone")
             redacted = phone_pattern.sub("[PHONE-REDACTED]", redacted)
-
-        # API key patterns
-        api_key_pattern = re.compile(
-            r"(?:AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[0-9A-Z]{16}"
-            r"|(?:sk|pk|rk)_[a-zA-Z0-9]{20,}"
-            r"|AIza[0-9A-Za-z_-]{35}"
-            r"|ghp_[a-zA-Z0-9]{36}"
-        )
-        if api_key_pattern.search(redacted):
-            violations.append("out_pii_api_key")
-            redacted = api_key_pattern.sub("[API-KEY-REDACTED]", redacted)
 
         return redacted, violations
