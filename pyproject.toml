@@ -7,7 +7,7 @@ name = "picowatch"
 version = "0.2.0"
 description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability for the Shogun platform"
 readme = "README.md"
-license = "KirkForge Personal Use License"
+license = {text = "KirkForge Personal Use License"}
 requires-python = ">=3.10"
 authors = [{name = "Henrik Kirk", email = "kirk@kirkforge.dev"}]
 maintainers = [{name = "KirkForge", email = "kirk@kirkforge.dev"}]
