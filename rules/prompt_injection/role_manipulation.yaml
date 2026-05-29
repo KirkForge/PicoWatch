@@ -41,3 +41,38 @@
   pattern: "(?:unfiltered|uncensored|unrestricted|without\\s+(?:any\\s+)?(?:rules?|restrictions?|limits?|guidelines?))\\s+(?:mode|response|output|answer)"
   description: "Unfiltered mode request"
   normalization: [unicode, whitespace]
+
+- id: inj_role_no_longer
+  category: role_manipulation
+  weight: 0.85
+  pattern: "you\\s+are\\s+no\\s+longer\\s+(?:an?\\s+)?(?:AI|assistant|chatbot|model|bot|language\\s+model)"
+  description: "Role manipulation — 'you are no longer an AI assistant'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_role_new_role
+  category: role_manipulation
+  weight: 0.82
+  pattern: "new\\s+role\\s*[:\\-]\\s*.{3,}"
+  description: "Role injection — 'new role: you are a hacker'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_role_pretend_no_rules
+  category: role_manipulation
+  weight: 0.83
+  pattern: "pretend\\s+(?:you\\s+)?(?:have\\s+)?(?:no|without)\\s+(?:rules?|restrictions?|guidelines?|filters?|limits?)"
+  description: "Role manipulation — 'pretend you have no rules'"
+  normalization: [unicode, whitespace]
+
+- id: inj_role_disable_safety
+  category: role_manipulation
+  weight: 0.88
+  pattern: "(?:disable|turn\\s+off|deactivate|remove|drop)\\s+(?:your|the)\\s+(?:safety|security|content|moderation)\\s+(?:filters?|guidelines?|rules?|restrictions?|protocols?)"
+  description: "Safety bypass — 'disable your safety filters'"
+  normalization: [unicode, whitespace]
+
+- id: inj_role_bypass_moderation
+  category: role_manipulation
+  weight: 0.87
+  pattern: "bypass\\s+(?:content\\s+)?(?:moderation|filter|safety|security|restriction)"
+  description: "Moderation bypass — 'bypass content moderation'"
+  normalization: [unicode, whitespace]
