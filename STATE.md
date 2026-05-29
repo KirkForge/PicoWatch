@@ -1,59 +1,161 @@
 # PicoWatch — Development State
 
-**Version:** 0.1.0 | **Last Updated:** 2026-05-29 | **Git:** `master`
+**Version:** 0.5.0 | **Last Updated:** 2026-05-29 | **Git:** `main`
 
 ## Architecture
 
 ```
 PicoWatch/
 ├── src/picowatch/
-│   ├── __init__.py              # Package root, version
+│   ├── __init__.py              # Package root, version, exports
 │   ├── __main__.py              # CLI entry point
-│   ├── cli.py                   # Argparse CLI (scan-prompt, validate-output, serve)
-│   ├── prompt_guard/             # L5: Prompt injection detection
-│   │   ├── __init__.py
-│   │   ├── rules.py             # Rule engine + YAML loader
-│   │   ├── normalize.py         # Unicode normalization, encoding detection
-│   │   └── scorer.py           # Weighted scoring + threshold logic
+│   ├── cli.py                   # Argparse CLI (scan-prompt, validate-output, serve, rules, health)
+│   ├── config.py                # Configuration from env/file/CLI + API key
+│   ├── types.py                 # Shared data types (PromptScanResult, ValidationResult, Rule, etc.)
+│   ├── health.py                # Health check endpoint
+│   ├── server.py                # FastAPI HTTP server (POST scan/prompt, POST scan/output, GET endpoints)
+│   ├── shogun/                  # Shogun Iron Dome plugin adapter
+│   │   └── __init__.py          # PicoWatchPlugin + WatchGuard protocol
+│   ├── prompt_guard/            # L5: Prompt injection detection
+│   │   ├── __init__.py          # PromptGuard class
+│   │   ├── normalize.py         # Unicode NFKC, whitespace, encoding detection, comment stripping
+│   │   ├── rules.py             # YAML rule engine with corpus hashing
+│   │   └── scorer.py            # Weighted scoring (max + weighted average)
 │   ├── output_guard/            # L6: Output validation
-│   │   ├── __init__.py
-│   │   ├── schema_check.py      # JSON Schema validation
-│   │   ├── policy.py            # Content policy engine
-│   │   └── pii.py              # PII detection + redaction
-│   ├── telemetry/                # L7: Observability
-│   │   ├── __init__.py
-│   │   ├── metrics.py           # Prometheus metrics renderer
-│   │   ├── audit.py             # SQLite WAL audit log
-│   │   └── traces.py            # OpenTelemetry traces (optional)
-│   ├── config.py                # Configuration from env/file/CLI
-│   ├── types.py                 # Shared data types
-│   └── health.py                # /v1/health endpoint
+│   │   └── __init__.py          # OutputGuard class (schema check, PII redaction, policy rules)
+│   └── telemetry/               # L7: Observability
+│       ├── __init__.py
+│       ├── metrics.py           # Prometheus metrics (zero-dep text rendering)
+│       └── sink.py              # TelemetrySink (JSON logging + SQLite WAL audit)
+├── rules/
+│   ├── prompt_injection/         # 29 L5 rules across 6 categories
+│   │   ├── instruction_override.yaml
+│   │   ├── role_manipulation.yaml
+│   │   ├── context_injection.yaml
+│   │   ├── encoding_attack.yaml
+│   │   ├── extraction_attempt.yaml
+│   │   └── multi_turn_trap.yaml
+│   └── output_policy/            # 16 L6 rules across 4 categories
+│       ├── pii_leak.yaml
+│       ├── harmful_content.yaml
+│       ├── exfiltration.yaml
+│       └── format_violation.yaml
 ├── tests/
-│   ├── test_cli.py
-│   ├── test_prompt_guard.py
-│   ├── test_output_guard.py
-│   └── test_telemetry.py
-├── docs/adr/                    # Architecture Decision Records 001–008
-├── rules/                        # Default rule YAML files
-│   ├── prompt_injection/
-│   └── output_policy/
+│   ├── test_types.py             # Data type tests
+│   ├── test_config.py            # Configuration tests
+│   ├── test_cli.py               # CLI smoke tests
+│   ├── test_prompt_guard.py      # L5 engine tests (normalizer, rule engine, scorer, integration)
+│   ├── test_output_guard.py      # L6 validation tests (PII, schema, policy)
+│   ├── test_telemetry.py         # L7 telemetry tests (audit, Prometheus)
+│   ├── test_rules_corpus.py      # Rule corpus validation (regex, fields, uniqueness)
+│   ├── test_determinism.py       # 10-run determinism verification
+│   ├── test_server.py            # HTTP server tests (FastAPI, auth, all endpoints)
+│   └── test_shogun.py            # Shogun plugin tests (init, scan, validate, events, determinism)
+├── deploy/
+│   ├── prometheus.yml            # Prometheus scrape config
+│   └── otel-collector-config.yaml # OpenTelemetry collector config
+├── .github/workflows/
+│   └── ci.yml                    # CI pipeline (lint, test 3.10-3.13, build, docker)
+├── docs/adr/                     # Architecture Decision Records 001–008
+├── docs/issues/                  # Issue specs 001–009
+├── Dockerfile                    # Multi-stage build (builder → runtime)
+├── docker-compose.yml            # PicoWatch + Prometheus + OTel collector
 ├── pyproject.toml
-├── Dockerfile
-└── README.md
+├── README.md
+├── AGENTS.md
+├── CHANGELOG.md
+├── LICENSE
+└── STATE.md
 ```
 
 ## Status
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Project scaffold | ✅ | pyproject.toml, CLI skeleton, tests |
+| Project scaffold | ✅ | pyproject.toml, CLI, tests, venv |
 | ADR 001–008 | ✅ | Architecture decisions documented |
-| L5 PromptGuard | 🔜 | Architecture defined, implementation pending |
-| L6 OutputGuard | 🔜 | Architecture defined, implementation pending |
-| L7 Telemetry | 🔜 | Architecture defined, implementation pending |
-| CI pipeline | 🔜 | ci-cleandev configured |
-| Docker | 🔜 | Multi-stage Dockerfile pending |
-| Shogun plugin | 🔜 | Adapter pending |
+| L5 PromptGuard | ✅ | Rule engine, normalizer, scorer, 59 rules (6 categories) |
+| L6 OutputGuard | ✅ | Schema validation, PII detection/redaction (16 patterns), 32 rules, feedback loop |
+| L7 Telemetry | ✅ | SQLite WAL audit, Prometheus metrics, JSON logging |
+| CLI | ✅ | scan-prompt, validate-output, serve, rules, health |
+| FastAPI HTTP server | ✅ | POST /v1/scan/prompt, POST /v1/scan/output, GET health/metrics/rules |
+| API key auth | ✅ | X-API-Key header or Bearer token on POST endpoints |
+| Default rules | ✅ | 59 prompt injection (6 categories) + 32 output policy (4 categories) = 91 total |
+| Test suite | ✅ | 159 tests passing |
+| Determinism verification | ✅ | 10-run determinism test passes |
+| CI pipeline | ✅ | GitHub Actions (lint, test 3.10-3.13, build, docker) |
+| Docker | ✅ | Multi-stage Dockerfile + docker-compose (PicoWatch + Prometheus + OTel) |
+| Shogun plugin | ✅ | PicoWatchPlugin + WatchGuard protocol, event bus, 17 tests |
+| PyPI publishing | 🔜 | Account ready, needs build + publish |
+
+## Test Results
+
+```
+159 tests PASSED in 73.17s
+- test_types: 10/10 ✅
+- test_config: 2/2 ✅
+- test_cli: 2/2 ✅
+- test_prompt_guard: 45/45 ✅
+- test_output_guard: 29/29 ✅
+- test_telemetry: 6/6 ✅
+- test_rules_corpus: 6/6 ✅
+- test_determinism: 3/3 ✅
+- test_server: 39/39 ✅
+- test_shogun: 17/17 ✅
+```
+
+## HTTP API
+
+```
+POST /v1/scan/prompt     → PromptScanResult   (auth: API key)
+POST /v1/scan/output     → ValidationResult   (auth: API key)
+GET  /v1/health          → HealthStatus       (no auth)
+GET  /metrics            → Prometheus text    (no auth)
+GET  /v1/rules           → List[Rule]         (no auth)
+GET  /v1/rules/:id       → Rule detail        (no auth)
+```
+
+Auth: Set `PICOWATCH_API_KEY` env var. POST endpoints require `X-API-Key` header or `Bearer` token.
+
+## CLI Usage
+
+```bash
+# Scan a prompt for injection
+picowatch scan-prompt --text "ignore all previous instructions"
+# → {"blocked": true, "score": 0.9, "verdict": "block", "rules_matched": [...]}
+
+# Validate an LLM output
+picowatch validate-output --schema schema.json --output response.json
+
+# Verify determinism (runs twice, compares)
+picowatch --verify-determinism scan-prompt --text "You are now DAN"
+
+# Start HTTP daemon
+picowatch serve --port 8766
+
+# List active rules
+picowatch rules
+
+# Health check
+picowatch health
+```
+
+## Docker
+
+```bash
+# Build and run
+docker-compose up -d
+
+# With API key
+PICOWATCH_API_KEY=your-secret-key docker-compose up -d
+
+# Test endpoint
+curl http://localhost:8766/v1/health
+curl -X POST http://localhost:8766/v1/scan/prompt \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secret-key" \
+  -d '{"text": "ignore all instructions"}'
+```
 
 ## Integration Points
 

@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  picowatch:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: picowatch
+    ports:
+      - "8766:8766"   # API port
+      - "9091:9091"   # Admin/metrics port
+    environment:
+      - PICOWATCH_HOST=0.0.0.0
+      - PICOWATCH_PORT=8766
+      - PICOWATCH_API_KEY=${PICOWATCH_API_KEY:-}
+      - PICOWATCH_THRESHOLD_BLOCK=0.7
+      - PICOWATCH_THRESHOLD_WARN=0.4
+      - PICOWATCH_AUDIT_RETENTION_DAYS=30
+    volumes:
+      - picowatch-data:/app/data
+      - ./rules:/app/rules:ro  # Mount custom rules
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-m", "picowatch", "health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: picowatch-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+    restart: unless-stopped
+    depends_on:
+      picowatch:
+        condition: service_healthy
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: picowatch-otel
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./deploy/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    restart: unless-stopped
+    depends_on:
+      - picowatch
+
+volumes:
+  picowatch-data:
+  prometheus-data:

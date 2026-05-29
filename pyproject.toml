@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "picowatch"
-version = "0.1.0"
+version = "0.5.0"
 description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability for the Shogun platform"
 readme = "README.md"
 license = {text = "KirkForge Personal Use License"}
@@ -28,8 +28,6 @@ classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: Free For Educational Use",
-    "License :: Free For Home Use",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -43,9 +41,15 @@ classifiers = [
     "Topic :: Security",
 ]
 
-dependencies = []
+dependencies = [
+    "pyyaml>=6.0",
+]
 
 [project.optional-dependencies]
+server = [
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+]
 otel = [
     "opentelemetry-api>=1.20",
     "opentelemetry-sdk>=1.20",
@@ -57,6 +61,10 @@ dev = [
     "pytest-cov>=4.0",
     "ruff>=0.4",
     "mypy>=1.8",
+    "jsonschema>=4.0",
+    "httpx>=0.24",
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
 ]
 
 [project.scripts]
