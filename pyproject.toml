@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "picowatch"
-version = "0.1.0"
+version = "0.2.0"
 description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability for the Shogun platform"
 readme = "README.md"
-license = {text = "KirkForge Personal Use License"}
+license = "KirkForge Personal Use License"
 requires-python = ">=3.10"
 authors = [{name = "Henrik Kirk", email = "kirk@kirkforge.dev"}]
 maintainers = [{name = "KirkForge", email = "kirk@kirkforge.dev"}]
@@ -28,8 +28,6 @@ classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: Free For Educational Use",
-    "License :: Free For Home Use",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",

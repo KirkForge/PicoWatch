@@ -1,6 +1,6 @@
 # PicoWatch — Development State
 
-**Version:** 0.1.0 | **Last Updated:** 2026-05-29 | **Git:** `main` (commit `078586f`)
+**Version:** 0.2.0 | **Last Updated:** 2026-05-29 | **Git:** `main` (commit `078586f`)
 
 ## Architecture
 
@@ -14,6 +14,8 @@ PicoWatch/
 │   ├── types.py                 # Shared data types (PromptScanResult, ValidationResult, Rule, etc.)
 │   ├── health.py                # Health check endpoint
 │   ├── server.py                # FastAPI HTTP server (POST scan/prompt, POST scan/output, GET endpoints)
+│   ├── shogun/                  # Shogun Iron Dome plugin adapter
+│   │   └── __init__.py          # PicoWatchPlugin + WatchGuard protocol
 │   ├── prompt_guard/            # L5: Prompt injection detection
 │   │   ├── __init__.py          # PromptGuard class
 │   │   ├── normalize.py         # Unicode NFKC, whitespace, encoding detection, comment stripping
@@ -47,7 +49,8 @@ PicoWatch/
 │   ├── test_telemetry.py         # L7 telemetry tests (audit, Prometheus)
 │   ├── test_rules_corpus.py      # Rule corpus validation (regex, fields, uniqueness)
 │   ├── test_determinism.py       # 10-run determinism verification
-│   └── test_server.py            # HTTP server tests (FastAPI, auth, all endpoints)
+│   ├── test_server.py            # HTTP server tests (FastAPI, auth, all endpoints)
+│   └── test_shogun.py            # Shogun plugin tests (init, scan, validate, events, determinism)
 ├── deploy/
 │   ├── prometheus.yml            # Prometheus scrape config
 │   └── otel-collector-config.yaml # OpenTelemetry collector config
@@ -82,22 +85,23 @@ PicoWatch/
 | Determinism verification | ✅ | 10-run determinism test passes |
 | CI pipeline | ✅ | GitHub Actions (lint, test 3.10-3.13, build, docker) |
 | Docker | ✅ | Multi-stage Dockerfile + docker-compose (PicoWatch + Prometheus + OTel) |
-| Shogun plugin | 🔜 | Adapter pending |
+| Shogun plugin | ✅ | PicoWatchPlugin + WatchGuard protocol, event bus, 17 tests |
 | PyPI publishing | 🔜 | Account ready, needs build + publish |
 
 ## Test Results
 
 ```
-96 tests PASSED in 27.30s
-- test_types: 8/8 ✅
+113 tests PASSED in 33.03s
+- test_types: 10/10 ✅
 - test_config: 2/2 ✅
 - test_cli: 2/2 ✅
-- test_prompt_guard: 12/12 ✅ (normalizer, rule engine, scorer, integration, determinism)
-- test_output_guard: 8/8 ✅ (PII, schema, policy, determinism)
-- test_telemetry: 5/5 ✅ (audit, Prometheus, health)
-- test_rules_corpus: 6/6 ✅ (regex valid, fields present, unique IDs, hash stable)
-- test_determinism: 3/3 ✅ (10-run prompt, 10-run output, corpus hash)
-- test_server: 39/39 ✅ (health, metrics, rules, scan/prompt, scan/output, auth, 404)
+- test_prompt_guard: 20/20 ✅
+- test_output_guard: 8/8 ✅
+- test_telemetry: 6/6 ✅
+- test_rules_corpus: 6/6 ✅
+- test_determinism: 3/3 ✅
+- test_server: 39/39 ✅
+- test_shogun: 17/17 ✅
 ```
 
 ## HTTP API
