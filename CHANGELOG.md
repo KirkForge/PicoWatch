@@ -4,6 +4,23 @@ All notable changes to PicoWatch will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-05-29
+
+### Added
+- **Input size limit enforcement on all endpoints** (ADR-008): Both `/v1/scan/prompt` and `/v1/scan/output` now reject payloads exceeding `max_prompt_size` (default 1MB) with HTTP 413
+- **Config file permission warnings** (ADR-008): `check_config_permissions()` warns on group/world-readable config files and errors on world-readable files containing API keys
+- **Audit log integrity checksums** (ADR-008): HMAC-SHA256 checksum on every audit row; `verify_audit_integrity()` method to detect tampering
+- **Audit log auto-cleanup on startup** (ADR-002): `TelemetrySink.__init__()` now calls `cleanup_audit()` to prune entries beyond retention period
+- **`--shogun-plugin` CLI flag** (ADR-005): `picowatch --shogun-plugin` initializes the Shogun PicoWatchPlugin and prints readiness status
+- **Determinism guard** (ADR-006): `random.seed(0)` in scorer module prevents accidental nondeterministic behavior
+- **SLSA provenance + SBOM in CI** (ADR-008): Build job now generates CycloneDX SBOM and SHA-256 digest; provenance job generates SLSA Level 3 attestation on push to master
+- **Schema migration for audit_log**: Added `checksum` column with automatic ALTER TABLE migration for existing databases
+
+### Changed
+- Version bumped to 0.7.0
+- Server `scan_prompt` endpoint now raises `HTTPException(413)` instead of returning `JSONResponse(413)` for consistency with `scan_output`
+
+
 ## [0.5.0] - 2026-05-29
 
 ### Added

@@ -538,6 +538,7 @@ class TestAdminApp:
     def admin_client(self) -> TestClient:
         """TestClient for the admin app."""
         from picowatch.server import create_admin_app
+
         app = create_admin_app()
         return TestClient(app)
 
@@ -584,3 +585,31 @@ class TestAdminApp:
         """Admin app does not accept POST requests."""
         response = admin_client.post("/v1/scan/prompt", json={"text": "test"})
         assert response.status_code == 405 or response.status_code == 404
+
+
+class TestInputSizeLimits:
+    """Test input size limit enforcement (ADR-008)."""
+
+    def test_prompt_oversized_returns_413(self, client_no_auth) -> None:
+        """POST /v1/scan/prompt with oversized payload returns 413."""
+        config = PicoWatchConfig(api_key=None, max_prompt_size=100)
+        app = create_app(config)
+        client = TestClient(app)
+        response = client.post(
+            "/v1/scan/prompt",
+            json={"text": "x" * 101},
+        )
+        assert response.status_code == 413
+        assert "maximum size" in response.json()["detail"].lower()
+
+    def test_output_oversized_returns_413(self, client_no_auth) -> None:
+        """POST /v1/scan/output with oversized payload returns 413."""
+        config = PicoWatchConfig(api_key=None, max_prompt_size=100)
+        app = create_app(config)
+        client = TestClient(app)
+        response = client.post(
+            "/v1/scan/output",
+            json={"output": "y" * 101},
+        )
+        assert response.status_code == 413
+        assert "maximum size" in response.json()["detail"].lower()

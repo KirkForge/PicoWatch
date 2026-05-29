@@ -6,6 +6,9 @@ OpenTelemetry is optional (pip install picowatch[otel]).
 
 from __future__ import annotations
 
+import contextlib
+import hashlib
+import hmac
 import json
 import logging
 import sqlite3
@@ -53,9 +56,11 @@ class TelemetrySink:
             "picowatch_scan_duration_ms_sum": 0.0,
         }
         self._init_audit_db()
+        # Prune expired audit entries on startup (ADR-002 retention)
+        self.cleanup_audit()
 
     def _init_audit_db(self) -> None:
-        """Initialize SQLite audit database in WAL mode."""
+        """Initialize SQLite audit database in WAL mode with integrity checksums (ADR-008)."""
         conn = sqlite3.connect(str(self._config.audit_db_path))
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("""
@@ -67,14 +72,30 @@ class TelemetrySink:
                 score REAL,
                 verdict TEXT,
                 rules TEXT,
-                details TEXT
+                details TEXT,
+                checksum TEXT NOT NULL
             )
         """)
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)
         """)
+        # Migration: add checksum column if upgrading from older schema
+        with contextlib.suppress(sqlite3.OperationalError):
+            conn.execute("ALTER TABLE audit_log ADD COLUMN checksum TEXT")
         conn.commit()
         conn.close()
+
+    @staticmethod
+    def _compute_checksum(
+        timestamp: str, event_type: str, request_id: str | None, score: float, verdict: str, rules: str
+    ) -> str:
+        """Compute HMAC-SHA256 checksum for audit log row integrity (ADR-008).
+
+        Uses a fixed key derived from the PicoWatch package identity.
+        This is for tamper detection, not cryptographic secrecy.
+        """
+        msg = f"{timestamp}|{event_type}|{request_id or ''}|{score}|{verdict}|{rules}"
+        return hmac.new(b"picowatch-audit-integrity", msg.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
 
     def record_prompt_scan(self, result: PromptScanResult, request_id: str | None = None) -> None:
         """Record a prompt scan result."""
@@ -177,23 +198,26 @@ class TelemetrySink:
         rules: str,
         details: str | None,
     ) -> None:
-        """Write to SQLite audit log."""
+        """Write to SQLite audit log with integrity checksum (ADR-008)."""
+        timestamp = datetime.now(timezone.utc).isoformat()
+        checksum = self._compute_checksum(timestamp, event_type, request_id, score, verdict, rules)
         try:
             conn = sqlite3.connect(str(self._config.audit_db_path))
             conn.execute(
                 """
                 INSERT INTO audit_log
-                    (timestamp, event_type, request_id, score, verdict, rules, details)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (timestamp, event_type, request_id, score, verdict, rules, details, checksum)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    datetime.now(timezone.utc).isoformat(),
+                    timestamp,
                     event_type,
                     request_id,
                     score,
                     verdict,
                     rules,
                     details,
+                    checksum,
                 ),
             )
             conn.commit()
@@ -201,6 +225,28 @@ class TelemetrySink:
         except sqlite3.Error:
             # Audit write failure should not break scanning
             logger.warning("Failed to write audit log entry")
+
+    def verify_audit_integrity(self) -> list[int]:
+        """Verify integrity checksums for all audit log rows (ADR-008).
+
+        Returns a list of row IDs with invalid checksums.
+        An empty list means all rows are intact.
+        """
+        invalid_rows: list[int] = []
+        try:
+            conn = sqlite3.connect(str(self._config.audit_db_path))
+            rows = conn.execute(
+                "SELECT id, timestamp, event_type, request_id, score, verdict, rules, checksum FROM audit_log"
+            ).fetchall()
+            conn.close()
+            for row in rows:
+                row_id, timestamp, event_type, request_id, score, verdict, rules, stored_checksum = row
+                expected = self._compute_checksum(timestamp, event_type, request_id, score, verdict, rules)
+                if stored_checksum != expected:
+                    invalid_rows.append(row_id)
+        except sqlite3.Error:
+            logger.warning("Failed to verify audit log integrity")
+        return invalid_rows
 
     def render_prometheus(self) -> str:
         """Render Prometheus metrics in text format (zero-dep)."""

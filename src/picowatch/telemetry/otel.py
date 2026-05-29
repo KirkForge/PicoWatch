@@ -38,7 +38,7 @@ def init_tracing(service_name: str = "picowatch", endpoint: str | None = None) -
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-        resource = Resource.create({"service.name": service_name, "service.version": "0.6.0"})
+        resource = Resource.create({"service.name": service_name, "service.version": "0.7.0"})
         provider = TracerProvider(resource=resource)
 
         if endpoint:
@@ -57,7 +57,7 @@ def init_tracing(service_name: str = "picowatch", endpoint: str | None = None) -
                 logger.warning("OTLP exporter not configured. Traces will be dropped.")
 
         trace.set_tracer_provider(provider)
-        _tracer = trace.get_tracer("picowatch", "0.6.0")
+        _tracer = trace.get_tracer("picowatch", "0.7.0")
         _initialized = True
         logger.info("OpenTelemetry tracing initialized (service=%s, endpoint=%s)", service_name, endpoint)
         return True

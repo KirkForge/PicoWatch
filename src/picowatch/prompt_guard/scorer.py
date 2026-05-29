@@ -6,9 +6,15 @@ Thresholds: block >= 0.7, warn >= 0.4, pass < 0.4.
 
 from __future__ import annotations
 
+import random
 import re
 
 from picowatch.types import Rule
+
+# Determinism guard: seed random to prevent nondeterministic behavior (ADR-006)
+# PicoWatch guarantees same input + same rules = same score, always.
+# If any randomness is accidentally introduced, this ensures reproducibility.
+random.seed(0)
 
 
 class Scorer:

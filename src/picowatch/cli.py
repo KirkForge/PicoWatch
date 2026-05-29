@@ -142,6 +142,27 @@ def _rules(args: argparse.Namespace, config: PicoWatchConfig) -> None:
     print(json.dumps(rules_list, indent=2))
 
 
+def _run_shogun_plugin(config: PicoWatchConfig) -> None:
+    """Run as Shogun Iron Dome plugin (ADR-005).
+
+    Loads PicoWatch as an in-process plugin in Shogun's firewall pipeline.
+    The plugin listens for events and provides L5/L6 filtering.
+    """
+    from picowatch.shogun import PicoWatchPlugin
+
+    plugin = PicoWatchPlugin()
+    h = plugin.health()
+    print(f"PicoWatch Shogun plugin v{h['version']} loaded", file=sys.stderr)
+    print("  Layers: L5 (prompt guard) + L6 (output guard)", file=sys.stderr)
+    print(f"  Rules loaded: {h['rules_loaded']}", file=sys.stderr)
+    print(f"  Corpus hash: {h['corpus_hash']}", file=sys.stderr)
+    print(f"  Corpus version: {h['corpus_version']}", file=sys.stderr)
+    print("Ready for Shogun event bus integration.", file=sys.stderr)
+    # In production, Shogun would call plugin.on_event() directly.
+    # For standalone testing, we expose the plugin for import.
+    print(json.dumps({"plugin": "picowatch", "status": "ready", **h}, indent=2))
+
+
 def main(argv: list[str] | None = None) -> None:
     """PicoWatch CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -150,6 +171,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--verify-determinism", action="store_true", help="Run twice and compare results")
+    parser.add_argument("--shogun-plugin", action="store_true", help="Run as Shogun Iron Dome plugin (ADR-005)")
     sub = parser.add_subparsers(dest="command")
 
     # scan-prompt
@@ -180,7 +202,9 @@ def main(argv: list[str] | None = None) -> None:
         parser.print_help()
         sys.exit(1)
 
-    if args.command == "scan-prompt":
+    if args.shogun_plugin:
+        _run_shogun_plugin(config)
+    elif args.command == "scan-prompt":
         _scan_prompt(args, config)
     elif args.command == "validate-output":
         _validate_output(args, config)

@@ -103,12 +103,18 @@ class PicoWatchConfig:
         """
         # Layer 1: Config file
         file_config: dict[str, object] = {}
+        config_file_path = config_path
         if config_path and config_path.exists():
             file_config = _load_toml_config(config_path)
         else:
             discovered = _find_config_file()
             if discovered:
                 file_config = _load_toml_config(discovered)
+                config_file_path = discovered
+
+        # Check config file permissions (ADR-008)
+        if config_file_path:
+            check_config_permissions()
 
         # Extract the [picowatch] section if present, else use root
         picowatch_conf: dict[str, Any] = file_config.get("picowatch", file_config)  # type: ignore[assignment]
@@ -159,3 +165,42 @@ class PicoWatchConfig:
             corpus_version=os.environ.get("PICOWATCH_CORPUS_VERSION")
             or picowatch_conf.get("corpus_version", DEFAULT_CORPUS_VERSION),
         )
+
+
+def check_config_permissions() -> list[str]:
+    """Check config file permissions and warn about insecure settings (ADR-008).
+
+    Returns a list of warning messages for overly-permissive config files.
+    """
+    import logging
+    import stat
+
+    logger = logging.getLogger("picowatch.config")
+    warnings: list[str] = []
+
+    for path in CONFIG_SEARCH_PATHS:
+        if path.exists():
+            mode = path.stat().st_mode
+            if mode & stat.S_IRGRP:
+                msg = (
+                    f"Config file {path} is group-readable (mode {oct(stat.S_IMODE(mode))}). Consider: chmod 640 {path}"
+                )
+                warnings.append(msg)
+                logger.warning(msg)
+            if mode & stat.S_IROTH:
+                msg = (
+                    f"Config file {path} is world-readable (mode {oct(stat.S_IMODE(mode))}). Consider: chmod 600 {path}"
+                )
+                warnings.append(msg)
+                logger.warning(msg)
+            # Check if api_key is in a world-readable file
+            try:
+                content = path.read_text(encoding="utf-8")
+                if "api_key" in content.lower() and (mode & stat.S_IROTH):
+                    msg = f"SECURITY: api_key found in world-readable config {path}. Consider: chmod 600 {path}"
+                    warnings.append(msg)
+                    logger.error(msg)
+            except Exception:
+                pass
+
+    return warnings

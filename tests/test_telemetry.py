@@ -125,3 +125,78 @@ class TestPrometheusMetrics:
         assert "picowatch_prompt_score_count 1" in output
         assert "picowatch_prompt_score_sum" in output
         assert 'picowatch_prompt_score_bucket{le="+Inf"} 1' in output
+
+
+class TestAuditIntegrity:
+    """Test audit log integrity checksums (ADR-008)."""
+
+    def test_checksum_written_to_audit(self, tmp_path) -> None:
+        """Audit rows include an HMAC-SHA256 checksum."""
+        db_path = tmp_path / "test_integrity.db"
+        config = TelemetryConfig(audit_db_path=db_path)
+        sink = TelemetrySink(config=config)
+
+        result = PromptScanResult(
+            blocked=True,
+            score=0.88,
+            rules_matched=["inj_override_ignore"],
+            corpus_hash="abc456",
+            corpus_version="2.0",
+            duration_ms=1.5,
+        )
+        sink.record_prompt_scan(result, request_id="req-integrity-1")
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        rows = conn.execute("SELECT checksum FROM audit_log").fetchall()
+        conn.close()
+        assert len(rows) == 1
+        assert rows[0][0] is not None
+        assert len(rows[0][0]) == 32  # truncated HMAC-SHA256
+
+    def test_verify_audit_integrity(self, tmp_path) -> None:
+        """verify_audit_integrity returns empty list for intact rows."""
+        db_path = tmp_path / "test_verify.db"
+        config = TelemetryConfig(audit_db_path=db_path)
+        sink = TelemetrySink(config=config)
+
+        result = PromptScanResult(
+            blocked=False,
+            score=0.1,
+            rules_matched=[],
+            corpus_hash="def789",
+            corpus_version="2.0",
+            duration_ms=0.5,
+        )
+        sink.record_prompt_scan(result, request_id="req-verify-1")
+
+        invalid = sink.verify_audit_integrity()
+        assert invalid == []
+
+    def test_verify_detects_tampering(self, tmp_path) -> None:
+        """verify_audit_integrity detects tampered rows."""
+        db_path = tmp_path / "test_tamper.db"
+        config = TelemetryConfig(audit_db_path=db_path)
+        sink = TelemetrySink(config=config)
+
+        result = PromptScanResult(
+            blocked=True,
+            score=0.77,
+            rules_matched=["inj_role_override"],
+            corpus_hash="xyz",
+            corpus_version="2.0",
+            duration_ms=3.2,
+        )
+        sink.record_prompt_scan(result, request_id="req-tamper-1")
+
+        # Tamper with the score in the database
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("UPDATE audit_log SET score = 0.0 WHERE 1=1")
+        conn.commit()
+        conn.close()
+
+        invalid = sink.verify_audit_integrity()
+        assert len(invalid) == 1

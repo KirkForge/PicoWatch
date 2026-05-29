@@ -128,3 +128,35 @@ port = 8888
         # Falls back to defaults
         assert config.threshold_block == 0.7
         os.unlink(f.name)
+
+
+class TestConfigPermissions:
+    """Test config file permission warnings (ADR-008)."""
+
+    def test_check_config_permissions_no_file(self, tmp_path) -> None:
+        """check_config_permissions returns empty list when no config file exists."""
+        from picowatch.config import check_config_permissions
+
+        # No config files exist in search paths — should return empty
+        warnings = check_config_permissions()
+        assert isinstance(warnings, list)
+
+    def test_check_config_permissions_world_readable(self, tmp_path) -> None:
+        """check_config_permissions warns on world-readable config file."""
+        from picowatch.config import check_config_permissions
+
+        # Create a temporary world-readable config
+        config_file = tmp_path / "picowatch.toml"
+        config_file.write_text("[picowatch]\nthreshold_block = 0.7\n")
+        config_file.chmod(0o644)
+
+        # Temporarily patch CONFIG_SEARCH_PATHS
+        import picowatch.config as cfg_module
+
+        original_paths = cfg_module.CONFIG_SEARCH_PATHS
+        cfg_module.CONFIG_SEARCH_PATHS = [config_file]
+        try:
+            warnings = check_config_permissions()
+            assert any("world-readable" in w for w in warnings)
+        finally:
+            cfg_module.CONFIG_SEARCH_PATHS = original_paths

@@ -15,7 +15,7 @@ class TestPluginInit:
         """Plugin initializes with default config."""
         plugin = PicoWatchPlugin()
         assert plugin.name == "picowatch"
-        assert plugin.version == "0.6.0"
+        assert plugin.version == "0.7.0"
         assert plugin.layers == [5, 6]
 
     def test_init_with_config(self) -> None:
@@ -29,7 +29,7 @@ class TestPluginInit:
         plugin = PicoWatchPlugin()
         h = plugin.health()
         assert h["plugin"] == "picowatch"
-        assert h["version"] == "0.6.0"
+        assert h["version"] == "0.7.0"
         assert h["layers"] == [5, 6]
         assert h["healthy"] is True
         assert isinstance(h["rules_loaded"], int)

@@ -1,6 +1,6 @@
 # PicoWatch — Development State
 
-**Version:** 0.6.0 | **Last Updated:** 2026-05-29 | **Git:** `master`
+**Version:** 0.7.0 | **Last Updated:** 2026-05-29 | **Git:** `master`
 
 ## Architecture
 
@@ -97,6 +97,13 @@ PicoWatch/
 | Prometheus histograms (ADR-002) | ✅ | picowatch_prompt_score, picowatch_scan_duration_seconds |
 | mypy strict | ✅ | 18 source files, 0 errors |
 | PyPI publishing | ✅ | Trusted Publishing workflow in `.github/workflows/publish.yml` |
+| Input size enforcement (ADR-008) | ✅ | Both endpoints reject >1MB payloads with 413 |
+| Config permission warnings (ADR-008) | ✅ | Warns on group/world-readable config; errors on exposed API keys |
+| Audit log integrity (ADR-008) | ✅ | HMAC-SHA256 checksums per row; verify_audit_integrity() method |
+| Audit auto-cleanup (ADR-002) | ✅ | Prunes entries beyond retention_days on startup |
+| --shogun-plugin CLI (ADR-005) | ✅ | Initializes Shogun PicoWatchPlugin from CLI |
+| Determinism guard (ADR-006) | ✅ | random.seed(0) in scorer module |
+| SLSA provenance in CI (ADR-008) | ✅ | CycloneDX SBOM + SHA-256 digest in build job |
 
 ## Test Results
 

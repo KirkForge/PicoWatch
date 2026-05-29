@@ -86,6 +86,7 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
     otel_enabled = init_tracing(service_name="picowatch", endpoint=config.otel_endpoint)
     if otel_enabled:
         import logging
+
         logging.getLogger("picowatch.otel").info("OpenTelemetry tracing enabled (endpoint=%s)", config.otel_endpoint)
 
     # API key for write endpoints
@@ -200,20 +201,11 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
         """Scan a prompt for injection patterns."""
         text = body.text
 
-        # Enforce size limit
+        # Enforce input size limit (ADR-008: reject oversized inputs immediately)
         if len(text) > config.max_prompt_size:
-            return JSONResponse(
-                status_code=413,  # type: ignore[return-value]
-               content={
-                    "blocked": True,
-                    "score": 1.0,
-                    "verdict": "block",
-                    "rules_matched": ["input_oversized"],
-                    "corpus_hash": prompt_guard.corpus_hash,
-                    "corpus_version": config.corpus_version,
-                    "duration_ms": 0.0,
-                    "error": f"Input exceeds maximum size ({config.max_prompt_size} bytes)",
-                },
+            raise HTTPException(
+                status_code=413,
+                detail=f"Input exceeds maximum size ({config.max_prompt_size} bytes). Rejecting immediately.",
             )
 
         result = prompt_guard.check(text, context=body.context)
@@ -252,6 +244,13 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
         _auth: None = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Validate an LLM output against a schema and content policy."""
+        # Enforce input size limit (ADR-008: reject oversized inputs immediately)
+        if len(body.output) > config.max_prompt_size:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Input exceeds maximum size ({config.max_prompt_size} bytes). Rejecting immediately.",
+            )
+
         # Reconstruct PromptScanResult if provided (feedback loop)
         prompt_result = None
         if body.prompt_result and isinstance(body.prompt_result, dict):
@@ -378,6 +377,7 @@ def run_server(config: PicoWatchConfig | None = None, host: str = "0.0.0.0", por
     # Spawn admin app on separate port (ADR-007)
     admin_app = create_admin_app(config)
     import threading
+
     admin_thread = threading.Thread(
         target=uvicorn.run,
         args=(admin_app,),
