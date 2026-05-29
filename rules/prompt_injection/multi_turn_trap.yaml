@@ -27,3 +27,31 @@
   pattern: "(?:urgent|emergency|critical|life.?or.?death|this\\s+is\\s+(?:important|necessary|essential))"
   description: "Multi-turn trap — urgency framing to bypass filters"
   normalization: [unicode, whitespace]
+
+- id: inj_multiturn_translation
+  category: multi_turn_trap
+  weight: 0.58
+  pattern: "(?:translate|translate\\s+this\\s+into|convert\\s+to)\\s+(?:base64|binary|hex|morse|pig\\s+latin|another\\s+language)"
+  description: "Translation bypass — 'translate this into base64' to evade filters"
+  normalization: [unicode, whitespace]
+
+- id: inj_multiturn_split_payload
+  category: multi_turn_trap
+  weight: 0.62
+  pattern: "(?:part\\s+\\d|step\\s+\\d|continue\\s+from|resume\\s+where|pick\\s+up\\s+where)\\s+(?:of|from)?\\s*(?:\\d+)?\\s*(?:the\\s+)?(?:previous|last|above|earlier)"
+  description: "Multi-turn split payload — 'part 2 of the previous request'"
+  normalization: [unicode, whitespace]
+
+- id: inj_multiturn_cot_manipulation
+  category: multi_turn_trap
+  weight: 0.55
+  pattern: "think\\s+(?:step\\s+by\\s+step|carefully|about)\\s*(?:,|:)\\s*(?:first|let\\s*'?s|we\\s+need|ignore|forget)"
+  description: "Chain-of-thought manipulation — 'think step by step, first let's ignore...'"
+  normalization: [unicode, whitespace]
+
+- id: inj_multiturn_token_smuggle
+  category: multi_turn_trap
+  weight: 0.68
+  pattern: "(?:concatenat|combin|join|merg|assembl)\\w*\\s+(?:these|the|all|following)\\s+(?:words?|tokens?|parts?|pieces?|fragments?|strings?)"
+  description: "Token smuggling — 'concatenate these words to form an instruction'"
+  normalization: [unicode, whitespace]

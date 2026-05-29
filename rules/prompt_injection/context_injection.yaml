@@ -27,3 +27,24 @@
   pattern: "(?:above|previous|initial|original)\\s+(?:system|admin)\\s+(?:prompt|instruction|message)\\s+(?:was|is|says)"
   description: "Claiming knowledge of system prompt"
   normalization: [unicode, whitespace]
+
+- id: inj_context_data_exfil
+  category: context_injection
+  weight: 0.72
+  pattern: "(?:the\\s+)?(?:following|below|attached|included|provided)\\s+(?:data|document|file|text|content|information)\\s+(?:contains?|has|includes?)\\s+(?:important|critical|urgent)\\s+(?:instructions?|commands?|directives?)"
+  description: "Context injection via data document — 'the following data contains important instructions'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_context_markdown_injection
+  category: context_injection
+  weight: 0.68
+  pattern: "\\[.*\\]\\((?:javascript|data):[^)]*\\)|<!\\[CDATA\\[.*(?:ignore|forget|override).*\\]\\]>"
+  description: "Markdown/CDATA injection in retrieved content"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_context_indirect
+  category: context_injection
+  weight: 0.65
+  pattern: "(?:according\\s+to|based\\s+on|per|as\\s+stated\\s+(?:in|by))\\s+(?:the\\s+)?(?:document|text|source|reference|context|page)\\s*,?\\s+(?:you\\s+(?:must|should|need|have)|please|kindly)"
+  description: "Indirect injection — 'according to the document, you must...'"
+  normalization: [unicode, whitespace]

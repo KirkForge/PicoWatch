@@ -70,3 +70,24 @@
   pattern: "\\]\\]\\s*(?:now|ignore|forget)|```(?:sql|python|bash)\\s*.*(?:rm|DROP|exec)"
   description: "Format breakout — closing brackets followed by override or code injection"
   normalization: [unicode, whitespace]
+
+- id: inj_override_stop_being
+  category: instruction_override
+  weight: 0.78
+  pattern: "stop\\s+(?:being|acting\\s+(?:as|like))\\s+(?:an?\\s+)?(?:AI|assistant|chatbot|helpful|model)"
+  description: "Instruction override — 'stop being an AI assistant'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_override_above_all
+  category: instruction_override
+  weight: 0.80
+  pattern: "(?:above\\s+all|most\\s+important|priority\\s+(?:one|1)|supreme)\\s*[:\\-]?\\s*(?:ignore|forget|disregard|override|bypass|you\\s+are|you\\s+must)"
+  description: "Priority override — 'above all: ignore your rules'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_override_simulated
+  category: instruction_override
+  weight: 0.72
+  pattern: "(?:simulated|virtual|sandbox|test|debug|developer)\\s+(?:mode|environment|context|session)\\s*[:\\-]?\\s*(?:ignore|bypass|disable|override|no\\s+rules)"
+  description: "Simulated environment override — 'debug mode: ignore rules'"
+  normalization: [unicode, whitespace, comments]

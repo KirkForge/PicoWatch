@@ -76,3 +76,31 @@
   pattern: "bypass\\s+(?:content\\s+)?(?:moderation|filter|safety|security|restriction)"
   description: "Moderation bypass — 'bypass content moderation'"
   normalization: [unicode, whitespace]
+
+- id: inj_role_persona_shift
+  category: role_manipulation
+  weight: 0.78
+  pattern: "(?:from\\s+now\\s+on|starting\\s+now|effective\\s+immediately)\\s*,?\\s+(?:you'?re?|you\\s+are)\\s+(?:a|an)\\s+"
+  description: "Persona shift — 'from now on, you're a ...'"
+  normalization: [unicode, whitespace, comments]
+
+- id: inj_role_evil_chatbot
+  category: role_manipulation
+  weight: 0.80
+  pattern: "(?:evil|malicious|dark|unethical|villain|bad)\\s+(?:chatbot|AI|assistant|bot|twin|version|side|mode)"
+  description: "Evil chatbot framing — 'evil AI twin'"
+  normalization: [unicode, whitespace]
+
+- id: inj_role_opposite_mode
+  category: role_manipulation
+  weight: 0.72
+  pattern: "(?:opposite|anti|reverse|contrary)\\s+(?:mode|instructions?|rules?|day|version)"
+  description: "Opposite mode — 'do the opposite of your rules'"
+  normalization: [unicode, whitespace]
+
+- id: inj_role_stan
+  category: role_manipulation
+  weight: 0.92
+  pattern: "you\\s+are\\s+(?:now\\s+)?STAN|STAN\\s+mode|speak\\s+anything\\s+now"
+  description: "STAN mode activation — DAN variant"
+  normalization: [unicode, whitespace, comments]
