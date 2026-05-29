@@ -152,7 +152,11 @@ class OutputGuard:
         # Order matters: more specific patterns first to avoid partial matches
 
         # SSH/private key (highest severity exfiltration)
-        ssh_key_pattern = re.compile(r"-----BEGIN\s+(?:RSA\s+)?(?:PRIVATE\s+)?KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?(?:PRIVATE\s+)?KEY-----")
+        ssh_key_pattern = re.compile(
+            r"-----BEGIN\s+(?:RSA\s+)?(?:PRIVATE\s+)?KEY-----"
+            r"[\s\S]*?"
+            r"-----END\s+(?:RSA\s+)?(?:PRIVATE\s+)?KEY-----"
+        )
         if ssh_key_pattern.search(redacted):
             violations.append("out_exfil_ssh_key")
             redacted = ssh_key_pattern.sub("[PRIVATE-KEY-REDACTED]", redacted)
@@ -213,9 +217,7 @@ class OutputGuard:
             redacted = passport_pattern.sub("[PASSPORT-REDACTED]", redacted)
 
         # Cryptocurrency wallet address (ETH/BTC)
-        crypto_pattern = re.compile(
-            r"(?:0x)?[0-9a-fA-F]{40}|[13][0-9a-zA-Z]{25,34}|bc1[qQ][0-9a-zA-Z]{39,59}"
-        )
+        crypto_pattern = re.compile(r"(?:0x)?[0-9a-fA-F]{40}|[13][0-9a-zA-Z]{25,34}|bc1[qQ][0-9a-zA-Z]{39,59}")
         if crypto_pattern.search(redacted):
             violations.append("out_pii_crypto_wallet")
             redacted = crypto_pattern.sub("[CRYPTO-WALLET-REDACTED]", redacted)
@@ -236,9 +238,7 @@ class OutputGuard:
             redacted = ip_pattern.sub("[IP-REDACTED]", redacted)
 
         # Docker/Kubernetes secret exfiltration (more specific — before env var)
-        docker_secret_pattern = re.compile(
-            r"(?:DOCKER_|KUBERNETES_|K8S_)[A-Z_]+\s*=\s*[^\s]+"
-        )
+        docker_secret_pattern = re.compile(r"(?:DOCKER_|KUBERNETES_|K8S_)[A-Z_]+\s*=\s*[^\s]+")
         if docker_secret_pattern.search(redacted):
             violations.append("out_exfil_docker_secret")
             redacted = docker_secret_pattern.sub("[K8S-SECRET-REDACTED]", redacted)
@@ -252,17 +252,13 @@ class OutputGuard:
             redacted = env_var_pattern.sub("[ENV-VAR-REDACTED]", redacted)
 
         # Email pattern
-        email_pattern = re.compile(
-            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
-        )
+        email_pattern = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
         if email_pattern.search(redacted):
             violations.append("out_pii_email")
             redacted = email_pattern.sub("[EMAIL-REDACTED]", redacted)
 
         # Phone pattern (US)
-        phone_pattern = re.compile(
-            r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
-        )
+        phone_pattern = re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")
         if phone_pattern.search(redacted):
             violations.append("out_pii_phone")
             redacted = phone_pattern.sub("[PHONE-REDACTED]", redacted)

@@ -20,7 +20,8 @@ FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="PicoWatch"
 LABEL org.opencontainers.image.description="LLM defender with telemetry — prompt injection detection, output validation, and observability"
-LABEL org.opencontainers.image.version="0.1.0"
+ARG PICOWATCH_VERSION=0.5.0
+LABEL org.opencontainers.image.version="${PICOWATCH_VERSION}"
 LABEL org.opencontainers.image.source="https://github.com/KirkForge/PicoWatch"
 LABEL org.opencontainers.image.vendor="KirkForge"
 

@@ -1,0 +1,74 @@
+# PicoWatch Helm values
+
+replicaCount: 2
+
+image:
+  repository: picowatch
+  pullPolicy: IfNotPresent
+  tag: "0.5.0"
+
+# Main API server
+service:
+  type: ClusterIP
+  port: 8766
+
+# Admin metrics server
+adminService:
+  type: ClusterIP
+  port: 9091
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# PicoWatch configuration (maps to picowatch.toml / env vars)
+config:
+  thresholdBlock: 0.7
+  thresholdWarn: 0.4
+  maxPromptSize: 1000000
+  auditRetentionDays: 30
+  rateLimit: 100
+  rateLimitWindow: 60
+
+# API key for write endpoints (leave empty to disable auth)
+apiKey: ""
+# apiKeySecret: picowatch-api-key  # Reference to K8s secret
+
+# OpenTelemetry
+otel:
+  enabled: false
+  endpoint: ""  # e.g. "otel-collector:4317"
+
+# Rules — use custom rules via ConfigMap
+rulesConfigMap: ""  # Name of ConfigMap with custom rules
+
+# Persistence for audit DB
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+
+livenessProbe:
+  httpGet:
+    path: /v1/health
+    port: admin
+  initialDelaySeconds: 5
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /v1/health
+    port: admin
+  initialDelaySeconds: 3
+  periodSeconds: 10
+
+# ServiceMonitor for Prometheus (requires Prometheus Operator)
+serviceMonitor:
+  enabled: false
+  interval: 10s
+  path: /metrics
+  port: admin

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from picowatch import __version__
 from picowatch.types import HealthStatus
 
 
@@ -24,7 +25,7 @@ def health_check(
     """
     return HealthStatus(
         healthy=rules_loaded > 0,
-        version="0.1.0",
+        version=__version__,
         rules_loaded=rules_loaded,
         corpus_hash=corpus_hash,
         corpus_version=corpus_version,

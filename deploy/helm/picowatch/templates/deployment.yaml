@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "picowatch.fullname" . }}
+  labels:
+    {{- include "picowatch.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "picowatch.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "picowatch.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: picowatch
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8766
+            - name: admin
+              containerPort: 9091
+          env:
+            - name: PICOWATCH_HOST
+              value: "0.0.0.0"
+            - name: PICOWATCH_PORT
+              value: "8766"
+            - name: PICOWATCH_THRESHOLD_BLOCK
+              value: {{ .Values.config.thresholdBlock | quote }}
+            - name: PICOWATCH_THRESHOLD_WARN
+              value: {{ .Values.config.thresholdWarn | quote }}
+            - name: PICOWATCH_MAX_PROMPT_SIZE
+              value: {{ .Values.config.maxPromptSize | quote }}
+            - name: PICOWATCH_AUDIT_RETENTION_DAYS
+              value: {{ .Values.config.auditRetentionDays | quote }}
+            - name: PICOWATCH_RATE_LIMIT
+              value: {{ .Values.config.rateLimit | quote }}
+            - name: PICOWATCH_RATE_LIMIT_WINDOW
+              value: {{ .Values.config.rateLimitWindow | quote }}
+            {{- if .Values.apiKey }}
+            - name: PICOWATCH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.apiKeySecret | default (include "picowatch.fullname" .) }}
+                  key: api-key
+            {{- end }}
+            {{- if .Values.otel.enabled }}
+            - name: PICOWATCH_OTEL_ENDPOINT
+              value: {{ .Values.otel.endpoint | quote }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            {{- if .Values.rulesConfigMap }}
+            - name: rules
+              mountPath: /app/rules
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "picowatch.fullname" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.rulesConfigMap }}
+        - name: rules
+          configMap:
+            name: {{ .Values.rulesConfigMap }}
+        {{- end }}

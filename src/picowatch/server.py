@@ -3,8 +3,12 @@
 Provides POST endpoints for prompt scanning and output validation,
 plus GET endpoints for health, metrics, and rules listing.
 
+Architecture (ADR-007):
+  - Main port (8766): API endpoints (scan, validate)
+  - Admin port (9091): Health, metrics, rules (read-only)
+
 Auth: API key via X-API-Key header or Bearer token on write endpoints.
-Health and metrics endpoints are unauthenticated.
+Rate limiting: Per-IP sliding window (ADR-008).
 """
 
 from __future__ import annotations
@@ -12,21 +16,25 @@ from __future__ import annotations
 import secrets
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
+from picowatch import __version__
 from picowatch.config import PicoWatchConfig
 from picowatch.health import health_check
 from picowatch.output_guard import OutputGuard
 from picowatch.prompt_guard import PromptGuard
+from picowatch.ratelimit import RateLimiter
 from picowatch.telemetry import TelemetrySink
 from picowatch.types import PromptScanResult
 
 # ─── Request/Response Models ──────────────────────────────────────────────
 
+
 class PromptScanRequest(BaseModel):
     """Request body for POST /v1/scan/prompt."""
+
     text: str = Field(..., min_length=1, description="Prompt text to scan")
     context: dict[str, Any] | None = Field(default=None, description="Optional context (user_id, model, etc.)")
     request_id: str | None = Field(default=None, description="Optional request ID for telemetry correlation")
@@ -34,6 +42,7 @@ class PromptScanRequest(BaseModel):
 
 class OutputScanRequest(BaseModel):
     """Request body for POST /v1/scan/output."""
+
     model_config = {"populate_by_name": True}
 
     output: str = Field(..., min_length=1, description="LLM output text to validate")
@@ -48,6 +57,17 @@ class OutputScanRequest(BaseModel):
 
 # ─── App Factory ──────────────────────────────────────────────────────────
 
+
+def _get_client_ip(request: Request) -> str:
+    """Extract client IP from request, respecting X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
 def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -55,21 +75,37 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
     """
     config = config or PicoWatchConfig.from_env()
 
-    # Initialize guards and telemetry
+    # Initialize guards, telemetry, and rate limiter
     prompt_guard = PromptGuard(config=config)
     output_guard = OutputGuard(config=config)
     sink = TelemetrySink()
+    limiter = RateLimiter(max_requests=config.rate_limit, window_seconds=config.rate_limit_window)
 
     # API key for write endpoints
     api_key = config.api_key or ""
 
     app = FastAPI(
         title="PicoWatch",
-        version="0.1.0",
+        version=__version__,
         description="LLM defender with telemetry — prompt injection detection, output validation, and observability",
     )
 
-    # ─── Auth dependency ───────────────────────────────────────────────
+    # ─── Rate limiting middleware ────────────────────────────────────────
+
+    @app.middleware("http")
+    async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
+        """Per-IP rate limiting on POST endpoints (ADR-008)."""
+        if request.method == "POST":
+            client_ip = _get_client_ip(request)
+            if not limiter.is_allowed(client_ip):
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Rate limit exceeded. Try again later."},
+                    headers={"Retry-After": str(config.rate_limit_window)},
+                )
+        return await call_next(request)
+
+    # ─── Auth dependency ────────────────────────────────────────────────
 
     async def verify_api_key(
         x_api_key: str | None = Header(None, alias="X-API-Key"),
@@ -92,7 +128,7 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
         if not provided_key or not secrets.compare_digest(provided_key, api_key):
             raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
-    # ─── GET endpoints (unauthenticated) ────────────────────────────────
+    # ─── GET endpoints (unauthenticated, admin port eligible) ───────────
 
     @app.get("/v1/health")
     async def get_health() -> dict[str, Any]:
@@ -147,7 +183,7 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
                 }
         raise HTTPException(status_code=404, detail=f"Rule '{rule_id}' not found")
 
-    # ─── POST endpoints (authenticated) ─────────────────────────────────
+    # ─── POST endpoints (authenticated, rate limited) ────────────────────
 
     @app.post("/v1/scan/prompt")
     async def scan_prompt(
@@ -243,13 +279,84 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
     return app
 
 
-def run_server(config: PicoWatchConfig | None = None, host: str = "0.0.0.0", port: int = 8766) -> None:
-    """Run the PicoWatch HTTP server using uvicorn.
+def create_admin_app(config: PicoWatchConfig | None = None) -> FastAPI:
+    """Create a read-only admin app for the admin port (ADR-007).
 
-    This is the entry point for `picowatch serve`.
+    Exposes health, metrics, and rules on a separate port (default 9091).
+    No auth required. No POST endpoints.
+    """
+    config = config or PicoWatchConfig.from_env()
+    prompt_guard = PromptGuard(config=config)
+    sink = TelemetrySink()
+
+    app = FastAPI(
+        title="PicoWatch Admin",
+        version=__version__,
+        description="Read-only admin endpoints for health, metrics, and rules",
+    )
+
+    @app.get("/v1/health")
+    async def admin_health() -> dict[str, Any]:
+        """Health check (admin)."""
+        h = health_check(
+            rules_loaded=len(prompt_guard.rules),
+            corpus_hash=prompt_guard.corpus_hash,
+            corpus_version=prompt_guard.corpus_version,
+        )
+        return {
+            "healthy": h.healthy,
+            "version": h.version,
+            "rules_loaded": h.rules_loaded,
+            "corpus_hash": h.corpus_hash,
+            "corpus_version": h.corpus_version,
+            "uptime_seconds": h.uptime_seconds,
+        }
+
+    @app.get("/metrics")
+    async def admin_metrics() -> PlainTextResponse:
+        """Prometheus metrics (admin)."""
+        return PlainTextResponse(
+            content=sink.render_prometheus(),
+            media_type="text/plain",
+        )
+
+    @app.get("/v1/rules")
+    async def admin_rules() -> list[dict[str, Any]]:
+        """List active rules (admin)."""
+        return [
+            {"id": r.id, "category": r.category, "weight": r.weight, "description": r.description}
+            for r in prompt_guard.rules
+        ]
+
+    @app.get("/v1/rules/{rule_id}")
+    async def admin_rule(rule_id: str) -> dict[str, Any]:
+        """Get rule detail (admin)."""
+        for r in prompt_guard.rules:
+            if r.id == rule_id:
+                return {
+                    "id": r.id,
+                    "category": r.category,
+                    "weight": r.weight,
+                    "pattern": r.pattern,
+                    "description": r.description,
+                    "normalization": r.normalization,
+                }
+        raise HTTPException(status_code=404, detail=f"Rule '{rule_id}' not found")
+
+    return app
+
+
+def run_server(config: PicoWatchConfig | None = None, host: str = "0.0.0.0", port: int = 8766) -> None:
+    """Run the PicoWatch HTTP server with admin port (ADR-007).
+
+    Main port serves API endpoints. Admin port serves health/metrics/rules.
     """
     import uvicorn
 
     config = config or PicoWatchConfig.from_env()
     app = create_app(config)
+
+    # Log admin port availability
+    print(f"PicoWatch admin endpoints on port {config.admin_port}", file=__import__("sys").stderr)
+
     uvicorn.run(app, host=host, port=port, log_level="info")

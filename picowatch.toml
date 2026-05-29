@@ -1,0 +1,30 @@
+# PicoWatch configuration file
+# Priority: CLI flags > environment variables > this file > defaults
+# Place in: ./picowatch.toml, ~/.config/picowatch/picowatch.toml, or /etc/picowatch/picowatch.toml
+
+[picowatch]
+# L5 Prompt Guard
+# rules_dir = "/etc/picowatch/rules"
+threshold_block = 0.7
+threshold_warn = 0.4
+max_prompt_size = 1000000
+
+# L6 Output Guard
+# schema_dir = "/etc/picowatch/schemas"
+
+# L7 Telemetry
+# otel_endpoint = "localhost:4317"
+audit_retention_days = 30
+
+# Server
+host = "0.0.0.0"
+port = 8766
+admin_port = 9091
+# api_key = "set-via-env-or-secret"
+
+# Rate limiting (ADR-008)
+rate_limit = 100
+rate_limit_window = 60
+
+# Corpus
+corpus_version = "2026.05.1"

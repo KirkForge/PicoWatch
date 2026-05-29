@@ -1,6 +1,5 @@
 """PicoWatch Telemetry tests."""
 
-
 from picowatch.telemetry import TelemetryConfig, TelemetrySink
 from picowatch.telemetry.metrics import PrometheusMetrics
 from picowatch.types import PromptScanResult, ValidationResult
@@ -27,6 +26,7 @@ class TestTelemetrySink:
 
         # Verify audit log was written
         import sqlite3
+
         conn = sqlite3.connect(str(db_path))
         rows = conn.execute("SELECT * FROM audit_log").fetchall()
         conn.close()
@@ -50,6 +50,7 @@ class TestTelemetrySink:
         sink.record_validation(result, request_id="req-002")
 
         import sqlite3
+
         conn = sqlite3.connect(str(db_path))
         rows = conn.execute("SELECT * FROM audit_log").fetchall()
         conn.close()

@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from picowatch import __version__
 from picowatch.types import HealthStatus, PromptScanResult, ValidationResult
 
 logger = logging.getLogger("picowatch")
@@ -76,17 +77,13 @@ class TelemetrySink:
     def record_prompt_scan(self, result: PromptScanResult, request_id: str | None = None) -> None:
         """Record a prompt scan result."""
         self._metrics["picowatch_requests_total"] += 1
-        self._metrics["picowatch_prompt_score_sum"] = (
-            float(self._metrics["picowatch_prompt_score_sum"]) + result.score
-        )
+        self._metrics["picowatch_prompt_score_sum"] = float(self._metrics["picowatch_prompt_score_sum"]) + result.score
         self._metrics["picowatch_scan_duration_ms_sum"] = (
             float(self._metrics["picowatch_scan_duration_ms_sum"]) + result.duration_ms
         )
 
         if result.blocked:
-            self._metrics["picowatch_prompt_blocked_total"] = (
-                int(self._metrics["picowatch_prompt_blocked_total"]) + 1
-            )
+            self._metrics["picowatch_prompt_blocked_total"] = int(self._metrics["picowatch_prompt_blocked_total"]) + 1
 
         # Structured JSON log
         log_entry = {
@@ -211,7 +208,7 @@ class TelemetrySink:
         """Return health status."""
         return HealthStatus(
             healthy=True,
-            version="0.1.0",
+            version=__version__,
             rules_loaded=rules_loaded,
             corpus_hash=corpus_hash,
             corpus_version=corpus_version,
@@ -226,9 +223,7 @@ class TelemetrySink:
         cutoff = datetime.now(timezone.utc) - __import__("datetime").timedelta(days=self._config.audit_retention_days)
         try:
             conn = sqlite3.connect(str(self._config.audit_db_path))
-            cursor = conn.execute(
-                "DELETE FROM audit_log WHERE timestamp < ?", (cutoff.isoformat(),)
-            )
+            cursor = conn.execute("DELETE FROM audit_log WHERE timestamp < ?", (cutoff.isoformat(),))
             deleted = cursor.rowcount
             conn.commit()
             conn.close()

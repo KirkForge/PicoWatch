@@ -1,0 +1,19 @@
+apiVersion: v2
+name: picowatch
+description: PicoWatch — LLM defender with telemetry (prompt injection detection, output validation, observability)
+type: application
+version: 0.5.0
+appVersion: "0.5.0"
+home: https://github.com/KirkForge/PicoWatch
+sources:
+  - https://github.com/KirkForge/PicoWatch
+keywords:
+  - llm
+  - security
+  - prompt-injection
+  - output-validation
+  - telemetry
+  - shogun
+maintainers:
+  - name: KirkForge
+    email: kirk@kirkforge.dev

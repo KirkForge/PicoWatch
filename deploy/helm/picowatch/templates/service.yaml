@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "picowatch.fullname" . }}
+  labels:
+    {{- include "picowatch.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+    - name: admin
+      port: {{ .Values.adminService.port }}
+      targetPort: admin
+  selector:
+    {{- include "picowatch.selectorLabels" . | nindent 4 }}

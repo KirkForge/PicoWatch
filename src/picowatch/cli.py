@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from picowatch import __version__
 from picowatch.config import PicoWatchConfig
 from picowatch.health import health_check
 from picowatch.output_guard import OutputGuard
@@ -102,7 +103,7 @@ def _serve(args: argparse.Namespace, config: PicoWatchConfig) -> None:
     """Handle serve subcommand — start FastAPI HTTP daemon."""
     from picowatch.server import run_server
 
-    print(f"PicoWatch v0.1.0 starting on {args.host}:{args.port}", file=sys.stderr)
+    print(f"PicoWatch {__version__} starting on {args.host}:{args.port}", file=sys.stderr)
 
     # Show loaded rules count
     guard = PromptGuard(config=config)
@@ -136,8 +137,7 @@ def _rules(args: argparse.Namespace, config: PicoWatchConfig) -> None:
     """List active rules."""
     guard = PromptGuard(config=config)
     rules_list = [
-        {"id": r.id, "category": r.category, "weight": r.weight, "description": r.description}
-        for r in guard.rules
+        {"id": r.id, "category": r.category, "weight": r.weight, "description": r.description} for r in guard.rules
     ]
     print(json.dumps(rules_list, indent=2))
 
@@ -195,13 +195,18 @@ def main(argv: list[str] | None = None) -> None:
             corpus_hash=guard.corpus_hash,
             corpus_version=guard.corpus_version,
         )
-        print(json.dumps({
-            "healthy": h.healthy,
-            "version": h.version,
-            "rules_loaded": h.rules_loaded,
-            "corpus_hash": h.corpus_hash,
-            "corpus_version": h.corpus_version,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "healthy": h.healthy,
+                    "version": h.version,
+                    "rules_loaded": h.rules_loaded,
+                    "corpus_hash": h.corpus_hash,
+                    "corpus_version": h.corpus_version,
+                },
+                indent=2,
+            )
+        )
 
 
 if __name__ == "__main__":

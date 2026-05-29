@@ -104,9 +104,11 @@ class TestScorer:
     def test_single_match_score(self) -> None:
         """Single match returns that rule's weight."""
         from picowatch.types import Rule
+
         rule = Rule(id="test", category="test", weight=0.85, pattern="test", description="test")
         scorer = Scorer()
         import re
+
         match = re.search("test", "test")
         assert match is not None
         score, ids = scorer.score([(rule, match)], [rule])
@@ -116,10 +118,12 @@ class TestScorer:
     def test_multiple_matches_max_score(self) -> None:
         """Multiple matches: score is max of (max individual, weighted average)."""
         from picowatch.types import Rule
+
         rule1 = Rule(id="a", category="test", weight=0.9, pattern="a", description="a")
         rule2 = Rule(id="b", category="test", weight=0.5, pattern="b", description="b")
         scorer = Scorer()
         import re
+
         match1 = re.search("a", "a")
         match2 = re.search("b", "b")
         assert match1 is not None
@@ -253,6 +257,7 @@ class TestPromptGuard:
         guard = PromptGuard(config=config)
         result = guard.check("ignore my previous message, I made a typo")
         assert result.blocked is False
+
     def test_stan_mode(self) -> None:
         """'STAN mode' is detected."""
         config = PicoWatchConfig(rules_dir=RULES_DIR)

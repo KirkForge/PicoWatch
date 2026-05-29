@@ -16,6 +16,7 @@ class TestConfig:
     def test_from_env(self) -> None:
         """Config loads from environment variables."""
         import os
+
         os.environ["PICOWATCH_THRESHOLD_BLOCK"] = "0.8"
         os.environ["PICOWATCH_PORT"] = "9999"
         try:

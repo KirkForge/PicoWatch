@@ -74,6 +74,7 @@ class TestOutputGuard:
         result2 = guard.validate(text)
         assert result1.score == result2.score
         assert result1.violations == result2.violations
+
     def test_jwt_detected(self) -> None:
         """JWT token in output is detected."""
         config = PicoWatchConfig(rules_dir=RULES_DIR)

@@ -25,7 +25,7 @@ keywords = [
     "supply-chain",
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "Operating System :: OS Independent",
@@ -72,6 +72,12 @@ picowatch = "picowatch.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+rules = ["prompt_injection/*.yaml", "prompt_injection/*.yml", "output_policy/*.yaml", "output_policy/*.yml"]
+picowatch = ["py.typed"]
+
+
 
 [tool.ruff]
 target-version = "py310"

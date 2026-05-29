@@ -41,6 +41,7 @@ def client_with_auth(config_with_auth: PicoWatchConfig) -> TestClient:
 
 # ─── GET /v1/health ──────────────────────────────────────────────────────
 
+
 class TestHealthEndpoint:
     """Tests for GET /v1/health."""
 
@@ -71,6 +72,7 @@ class TestHealthEndpoint:
 
 # ─── GET /metrics ─────────────────────────────────────────────────────────
 
+
 class TestMetricsEndpoint:
     """Tests for GET /metrics."""
 
@@ -95,6 +97,7 @@ class TestMetricsEndpoint:
 
 
 # ─── GET /v1/rules ───────────────────────────────────────────────────────
+
 
 class TestRulesEndpoint:
     """Tests for GET /v1/rules."""
@@ -126,6 +129,7 @@ class TestRulesEndpoint:
 
 # ─── GET /v1/rules/:id ───────────────────────────────────────────────────
 
+
 class TestRuleDetailEndpoint:
     """Tests for GET /v1/rules/:id."""
 
@@ -151,6 +155,7 @@ class TestRuleDetailEndpoint:
 
 
 # ─── POST /v1/scan/prompt ─────────────────────────────────────────────────
+
 
 class TestScanPromptEndpoint:
     """Tests for POST /v1/scan/prompt."""
@@ -228,6 +233,7 @@ class TestScanPromptEndpoint:
 
 
 # ─── POST /v1/scan/output ──────────────────────────────────────────────────
+
 
 class TestScanOutputEndpoint:
     """Tests for POST /v1/scan/output."""
@@ -324,6 +330,7 @@ class TestScanOutputEndpoint:
 
 # ─── Authentication ────────────────────────────────────────────────────────
 
+
 class TestAuthentication:
     """Tests for API key authentication on POST endpoints."""
 
@@ -398,6 +405,7 @@ class TestAuthentication:
 
 
 # ─── 404 for unknown routes ───────────────────────────────────────────────
+
 
 class TestUnknownRoutes:
     """Tests for unknown routes."""

@@ -18,6 +18,7 @@ from __future__ import annotations
 import time
 from typing import Any, ClassVar, Protocol
 
+from picowatch import __version__
 from picowatch.config import PicoWatchConfig
 from picowatch.output_guard import OutputGuard
 from picowatch.prompt_guard import PromptGuard
@@ -25,6 +26,7 @@ from picowatch.telemetry import TelemetrySink
 from picowatch.types import PromptScanResult, ValidationResult
 
 # ─── WatchGuard Protocol (Shogun interface) ────────────────────────────────
+
 
 class WatchGuard(Protocol):
     """Shogun WatchGuard protocol — all plugins implement this interface.
@@ -52,6 +54,7 @@ class WatchGuard(Protocol):
 
 # ─── PicoWatch Shogun Plugin ──────────────────────────────────────────────
 
+
 class PicoWatchPlugin:
     """Shogun Iron Dome plugin adapter for PicoWatch.
 
@@ -71,7 +74,7 @@ class PicoWatchPlugin:
     """
 
     name: ClassVar[str] = "picowatch"
-    version: ClassVar[str] = "0.1.0"
+    version: ClassVar[str] = __version__
     layers: ClassVar[list[int]] = [5, 6]  # L5 + L6 in Shogun pipeline
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
