@@ -81,34 +81,51 @@ PicoWatch/
 | FastAPI HTTP server | ✅ | POST /v1/scan/prompt, POST /v1/scan/output, GET health/metrics/rules |
 | API key auth | ✅ | X-API-Key header or Bearer token on POST endpoints |
 | Default rules | ✅ | 59 prompt injection (6 categories) + 32 output policy (4 categories) = 91 total |
-| Test suite | ✅ | 159 tests passing |
+| Test suite | ✅ | 191 tests passing |
 | Determinism verification | ✅ | 10-run determinism test passes |
 | CI pipeline | ✅ | GitHub Actions (lint, test 3.10-3.13, build, docker) |
 | Docker | ✅ | Multi-stage Dockerfile + docker-compose (PicoWatch + Prometheus + OTel) |
 | Shogun plugin | ✅ | PicoWatchPlugin + WatchGuard protocol, event bus, 17 tests |
+| OTel tracing | ✅ | init_tracing(), trace_prompt_scan(), trace_output_validation() in server endpoints |
+| Admin port (ADR-007) | ✅ | Separate 9091 port for health/metrics/rules |
+| Rate limiting (ADR-008) | ✅ | Per-IP sliding window, 429 + Retry-After |
+| TOML config file | ✅ | picowatch.toml search path: ., ~/.config/, /etc/ |
+| Request ID auto-gen (ADR-002) | ✅ | Auto-generates req-{uuid} if not provided |
+| Prometheus histograms (ADR-002) | ✅ | picowatch_prompt_score, picowatch_scan_duration_seconds |
+| mypy strict | ✅ | 18 source files, 0 errors |
 | PyPI publishing | 🔜 | Account ready, needs build + publish |
 
 ## Test Results
 
 ```
-159 tests PASSED in 73.17s
+191 tests PASSED in 73.17s
 - test_types: 10/10 ✅
-- test_config: 2/2 ✅
+- test_config: 8/8 ✅
 - test_cli: 2/2 ✅
 - test_prompt_guard: 45/45 ✅
 - test_output_guard: 29/29 ✅
-- test_telemetry: 6/6 ✅
+- test_telemetry: 8/8 ✅
 - test_rules_corpus: 6/6 ✅
 - test_determinism: 3/3 ✅
-- test_server: 39/39 ✅
+- test_ratelimit: 10/10 ✅
+- test_server: 53/53 ✅
 - test_shogun: 17/17 ✅
 ```
 
 ## HTTP API
 
+### Main port (8766)
 ```
 POST /v1/scan/prompt     → PromptScanResult   (auth: API key)
 POST /v1/scan/output     → ValidationResult   (auth: API key)
+GET  /v1/health          → HealthStatus       (no auth)
+GET  /metrics            → Prometheus text    (no auth)
+GET  /v1/rules           → List[Rule]         (no auth)
+GET  /v1/rules/:id       → Rule detail        (no auth)
+```
+
+### Admin port (9091, ADR-007)
+```
 GET  /v1/health          → HealthStatus       (no auth)
 GET  /metrics            → Prometheus text    (no auth)
 GET  /v1/rules           → List[Rule]         (no auth)

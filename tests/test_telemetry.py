@@ -105,3 +105,23 @@ class TestPrometheusMetrics:
         metrics.set_gauge("picowatch_active_scans", 3.0, labels={"guard_type": "prompt"})
         output = metrics.render()
         assert "picowatch_active_scans" in output
+
+    def test_histogram_rendering(self) -> None:
+        """Histogram metrics render with buckets, count, and sum."""
+        metrics = PrometheusMetrics()
+        metrics.observe_histogram("picowatch_scan_duration_seconds", 0.045, labels={"guard_type": "prompt"})
+        metrics.observe_histogram("picowatch_scan_duration_seconds", 0.12, labels={"guard_type": "prompt"})
+        output = metrics.render()
+        assert "# TYPE picowatch_scan_duration_seconds histogram" in output
+        assert "picowatch_scan_duration_seconds_count" in output
+        assert "picowatch_scan_duration_seconds_sum" in output
+        assert 'le="+Inf"' in output
+
+    def test_histogram_no_labels(self) -> None:
+        """Histogram without labels renders correctly."""
+        metrics = PrometheusMetrics()
+        metrics.observe_histogram("picowatch_prompt_score", 0.75)
+        output = metrics.render()
+        assert "picowatch_prompt_score_count 1" in output
+        assert "picowatch_prompt_score_sum" in output
+        assert 'picowatch_prompt_score_bucket{le="+Inf"} 1' in output

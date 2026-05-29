@@ -129,3 +129,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Determinism contract and SCAAT compliance model
 - Standalone-first integration design with Shogun binding
 - Supply-chain hardening (zero-dep core, self-scan, self-sandbox)
+
+## [0.5.1] - 2026-05-29
+
+### Added
+- **OTel tracing wired into server endpoints** (ADR-002): `init_tracing()` called in `create_app()`, `trace_prompt_scan()` and `trace_output_validation()` called after each scan/validation
+- **Admin port serving** (ADR-007): `run_server()` now spawns admin app on port 9091 alongside main API on 8766 via daemon thread
+- **Request ID auto-generation** (ADR-002): Server auto-generates `req-{uuid}` if no `request_id` provided; always included in response
+- **Prometheus histograms** (ADR-002): `picowatch_prompt_score` and `picowatch_scan_duration_seconds` histograms in `PrometheusMetrics.render()`; `TelemetrySink` delegates to `PrometheusMetrics` for all metric rendering
+- **Rate limiter tests**: `tests/test_ratelimit.py` — 10 tests for sliding window logic, window expiry, blocked slot behavior
+- **TOML config loading tests**: `tests/test_config.py` — 6 new tests for TOML file, env overrides, missing files, invalid TOML, `[picowatch]` section
+- **Server tests**: 14 new tests — rate limiting (429, Retry-After), request ID auto-generation, admin app endpoints (health, metrics, rules, no POST)
+- **Histogram rendering in PrometheusMetrics**: Bucket cumulative counts, `_count`, `_sum`, `+Inf` bucket, labels support
+- **mypy strict clean**: All 18 source files pass mypy with zero errors
+
+### Changed
+- `server.py`: Added `init_tracing()`, `trace_prompt_scan()`, `trace_output_validation()` imports and calls; added `uuid` import for request ID generation; `run_server()` spawns admin thread
+- `telemetry/sink.py`: Now uses `PrometheusMetrics` for all metric rendering (histograms + counters); `render_prometheus()` delegates to `PrometheusMetrics.render()`
+- `telemetry/metrics.py`: Added histogram bucket rendering with default Prometheus buckets
+- `config.py`: Fixed mypy type annotations for TOML loading (`dict[str, Any]`, proper `Any` imports)
+- `output_guard/__init__.py`: Typed `dict` parameters as `dict[str, Any]`
+- `prompt_guard/__init__.py`: Typed `context` parameter as `dict[str, Any]`
+- Total tests: 191 (was 159)

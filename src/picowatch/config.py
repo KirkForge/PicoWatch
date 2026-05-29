@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 DEFAULT_RULES_DIR = Path(__file__).parent.parent.parent / "rules"
 DEFAULT_THRESHOLD_BLOCK = 0.7
@@ -37,7 +38,7 @@ def _find_config_file() -> Path | None:
     return None
 
 
-def _load_toml_config(path: Path) -> dict[str, object]:
+def _load_toml_config(path: Path) -> dict[str, Any]:
     """Load configuration from a TOML file.
 
     Uses tomllib (Python 3.11+) with a fallback to tomli.
@@ -46,13 +47,14 @@ def _load_toml_config(path: Path) -> dict[str, object]:
         import tomllib
     except ImportError:
         try:
-            import tomli as tomllib  # type: ignore[no-redef]
+            import tomli as tomllib
         except ImportError:
             return {}
 
     try:
         with open(path, "rb") as f:
-            return tomllib.load(f)
+            data: dict[str, Any] = tomllib.load(f)
+            return data
     except Exception:
         return {}
 
@@ -109,10 +111,10 @@ class PicoWatchConfig:
                 file_config = _load_toml_config(discovered)
 
         # Extract the [picowatch] section if present, else use root
-        picowatch_conf = file_config.get("picowatch", file_config)
+        picowatch_conf: dict[str, Any] = file_config.get("picowatch", file_config)  # type: ignore[assignment]
 
         # Helper: env > file > default
-        def _env_or_file(key: str, env_var: str, default: object, cast: type = str) -> object:
+        def _env_or_file(key: str, env_var: str, default: Any, cast: type = str) -> Any:
             val = os.environ.get(env_var)
             if val is not None:
                 return cast(val)

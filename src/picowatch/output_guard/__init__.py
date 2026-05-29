@@ -10,6 +10,7 @@ import json
 import re
 import time
 from pathlib import Path
+from typing import Any
 
 from picowatch.config import PicoWatchConfig
 from picowatch.prompt_guard.normalize import Normalizer
@@ -49,7 +50,7 @@ class OutputGuard:
     def validate(
         self,
         output: str,
-        schema: dict | None = None,
+        schema: dict[str, Any] | None = None,
         prompt_result: PromptScanResult | None = None,
     ) -> ValidationResult:
         """Validate an LLM output.
@@ -106,7 +107,7 @@ class OutputGuard:
             redacted=redacted if redacted != output else None,
         )
 
-    def _check_schema(self, output: str, schema: dict) -> list[str]:
+    def _check_schema(self, output: str, schema: dict[str, Any]) -> list[str]:
         """Basic schema validation without jsonschema dependency.
 
         For full Draft 2020-12 validation, install jsonschema.

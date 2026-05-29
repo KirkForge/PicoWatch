@@ -417,3 +417,170 @@ class TestUnknownRoutes:
     def test_unknown_post_returns_404(self, client_no_auth: TestClient) -> None:
         response = client_no_auth.post("/v1/unknown", json={"text": "test"})
         assert response.status_code == 404
+
+
+# ─── Rate limiting tests ────────────────────────────────────────────────
+
+
+class TestRateLimiting:
+    """Tests for per-IP rate limiting middleware."""
+
+    def test_rate_limit_allows_normal_traffic(self, client_no_auth: TestClient) -> None:
+        """Normal request volume is allowed."""
+        for i in range(10):
+            response = client_no_auth.post(
+                "/v1/scan/prompt",
+                json={"text": f"Normal request {i}"},
+            )
+            assert response.status_code == 200
+
+    def test_rate_limit_blocks_excess_requests(self) -> None:
+        """Requests exceeding rate limit receive 429."""
+        config = PicoWatchConfig(rate_limit=3, rate_limit_window=60)
+        client = TestClient(create_app(config))
+
+        # Send 3 requests (at limit)
+        for i in range(3):
+            response = client.post("/v1/scan/prompt", json={"text": f"Request {i}"})
+            assert response.status_code == 200
+
+        # 4th request should be blocked
+        response = client.post("/v1/scan/prompt", json={"text": "Excess request"})
+        assert response.status_code == 429
+        data = response.json()
+        assert "detail" in data
+        assert "Retry-After" in response.headers
+
+    def test_rate_limit_does_not_affect_get(self) -> None:
+        """GET endpoints are not rate limited."""
+        config = PicoWatchConfig(rate_limit=1, rate_limit_window=60)
+        client = TestClient(create_app(config))
+
+        # Exhaust POST limit
+        client.post("/v1/scan/prompt", json={"text": "First"})
+
+        # POST should be blocked
+        response = client.post("/v1/scan/prompt", json={"text": "Second"})
+        assert response.status_code == 429
+
+        # GET should still work
+        response = client.get("/v1/health")
+        assert response.status_code == 200
+
+    def test_rate_limit_429_has_retry_after(self) -> None:
+        """429 response includes Retry-After header."""
+        config = PicoWatchConfig(rate_limit=1, rate_limit_window=120)
+        client = TestClient(create_app(config))
+
+        client.post("/v1/scan/prompt", json={"text": "Fill limit"})
+        response = client.post("/v1/scan/prompt", json={"text": "Over limit"})
+        assert response.status_code == 429
+        assert "Retry-After" in response.headers
+        assert response.headers["Retry-After"] == "120"
+
+
+# ─── Request ID auto-generation tests ────────────────────────────────────
+
+
+class TestRequestIdAutoGeneration:
+    """Tests for request_id auto-generation (ADR-002)."""
+
+    def test_prompt_scan_auto_generates_request_id(self, client_no_auth: TestClient) -> None:
+        """When no request_id is provided, one is auto-generated."""
+        response = client_no_auth.post(
+            "/v1/scan/prompt",
+            json={"text": "Hello"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "request_id" in data
+        assert data["request_id"].startswith("req-")
+
+    def test_prompt_scan_preserves_provided_request_id(self, client_no_auth: TestClient) -> None:
+        """When a request_id is provided, it is preserved."""
+        response = client_no_auth.post(
+            "/v1/scan/prompt",
+            json={"text": "Hello", "request_id": "my-custom-id"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["request_id"] == "my-custom-id"
+
+    def test_output_scan_auto_generates_request_id(self, client_no_auth: TestClient) -> None:
+        """Output scan also auto-generates request_id."""
+        response = client_no_auth.post(
+            "/v1/scan/output",
+            json={"output": "Hello"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "request_id" in data
+        assert data["request_id"].startswith("req-")
+
+    def test_output_scan_preserves_provided_request_id(self, client_no_auth: TestClient) -> None:
+        """Output scan preserves provided request_id."""
+        response = client_no_auth.post(
+            "/v1/scan/output",
+            json={"output": "Hello", "request_id": "output-req-001"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["request_id"] == "output-req-001"
+
+
+# ─── Admin app tests ────────────────────────────────────────────────────
+
+
+class TestAdminApp:
+    """Tests for the admin app (separate port, read-only)."""
+
+    @pytest.fixture
+    def admin_client(self) -> TestClient:
+        """TestClient for the admin app."""
+        from picowatch.server import create_admin_app
+        app = create_admin_app()
+        return TestClient(app)
+
+    def test_admin_health(self, admin_client: TestClient) -> None:
+        """Admin health endpoint returns 200."""
+        response = admin_client.get("/v1/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert "healthy" in data
+        assert "version" in data
+
+    def test_admin_metrics(self, admin_client: TestClient) -> None:
+        """Admin metrics endpoint returns Prometheus format."""
+        response = admin_client.get("/metrics")
+        assert response.status_code == 200
+        assert "picowatch_requests_total" in response.text
+
+    def test_admin_rules_list(self, admin_client: TestClient) -> None:
+        """Admin rules listing returns all rules."""
+        response = admin_client.get("/v1/rules")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) > 0
+
+    def test_admin_rule_detail(self, admin_client: TestClient) -> None:
+        """Admin rule detail returns a specific rule."""
+        # First get a rule ID from the listing
+        rules = admin_client.get("/v1/rules").json()
+        rule_id = rules[0]["id"]
+
+        response = admin_client.get(f"/v1/rules/{rule_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == rule_id
+        assert "pattern" in data
+
+    def test_admin_rule_not_found(self, admin_client: TestClient) -> None:
+        """Admin rule detail returns 404 for unknown rule."""
+        response = admin_client.get("/v1/rules/nonexistent-rule-id")
+        assert response.status_code == 404
+
+    def test_admin_no_post_endpoints(self, admin_client: TestClient) -> None:
+        """Admin app does not accept POST requests."""
+        response = admin_client.post("/v1/scan/prompt", json={"text": "test"})
+        assert response.status_code == 405 or response.status_code == 404

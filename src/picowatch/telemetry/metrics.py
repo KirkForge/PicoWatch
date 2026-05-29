@@ -60,6 +60,34 @@ class PrometheusMetrics:
             else:
                 lines.append(f"{name} {value}")
 
+        # Histograms
+        DEFAULT_BUCKETS = (0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+        for key, observations in sorted(self._histograms.items()):
+            name, labels = self._parse_key(key)
+            lines.append(f"# HELP {name} {name}")
+            lines.append(f"# TYPE {name} histogram")
+            label_suffix = ""
+            if labels:
+                label_suffix = "{" + ",".join(f'{k}="{v}"' for k, v in sorted(labels.items())) + "}"
+            count = len(observations)
+            total = sum(observations)
+            lines.append(f"{name}_count{label_suffix} {count}")
+            lines.append(f"{name}_sum{label_suffix} {total:.6f}")
+            # Bucket cumulative counts
+            for bucket in DEFAULT_BUCKETS:
+                bucket_count = sum(1 for o in observations if o <= bucket)
+                if labels:
+                    label_extra = ",".join(f'{k}="{v}"' for k, v in sorted(labels.items()))
+                    lines.append(f'{name}_bucket{{le="{bucket}",{label_extra}}} {bucket_count}')
+                else:
+                    lines.append(f'{name}_bucket{{le="{bucket}"}} {bucket_count}')
+            # +Inf bucket
+            if labels:
+                label_extra = ",".join(f'{k}="{v}"' for k, v in sorted(labels.items()))
+                lines.append(f'{name}_bucket{{le="+Inf",{label_extra}}} {count}')
+            else:
+                lines.append(f'{name}_bucket{{le="+Inf"}} {count}')
+
         return "\n".join(lines) + "\n"
 
     @staticmethod

@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from picowatch import __version__
+from picowatch.telemetry.metrics import PrometheusMetrics
 from picowatch.types import HealthStatus, PromptScanResult, ValidationResult
 
 logger = logging.getLogger("picowatch")
@@ -43,6 +44,7 @@ class TelemetrySink:
     def __init__(self, config: TelemetryConfig | None = None) -> None:
         self._config = config or TelemetryConfig()
         self._start_time = time.monotonic()
+        self._prometheus = PrometheusMetrics()
         self._metrics: dict[str, int | float] = {
             "picowatch_requests_total": 0,
             "picowatch_prompt_blocked_total": 0,
@@ -84,6 +86,18 @@ class TelemetrySink:
 
         if result.blocked:
             self._metrics["picowatch_prompt_blocked_total"] = int(self._metrics["picowatch_prompt_blocked_total"]) + 1
+        # Prometheus metrics (ADR-002)
+        model = result.details.get("model") if result.details else None
+        labels = {"model": model} if model else None
+        self._prometheus.inc_counter("picowatch_requests_total", labels=labels)
+        if result.blocked:
+            self._prometheus.inc_counter("picowatch_prompt_blocked_total", labels=labels)
+        self._prometheus.observe_histogram("picowatch_prompt_score", result.score, labels=labels)
+        self._prometheus.observe_histogram(
+            "picowatch_scan_duration_seconds",
+            result.duration_ms / 1000.0,
+            labels={"guard_type": "prompt"},
+        )
 
         # Structured JSON log
         log_entry = {
@@ -117,6 +131,17 @@ class TelemetrySink:
             )
         self._metrics["picowatch_scan_duration_ms_sum"] = (
             float(self._metrics["picowatch_scan_duration_ms_sum"]) + result.duration_ms
+        )
+        # Prometheus metrics (ADR-002)
+        self._prometheus.inc_counter("picowatch_requests_total")
+        if result.valid:
+            self._prometheus.inc_counter("picowatch_output_validated_total")
+        else:
+            self._prometheus.inc_counter("picowatch_output_violations_total")
+        self._prometheus.observe_histogram(
+            "picowatch_scan_duration_seconds",
+            result.duration_ms / 1000.0,
+            labels={"guard_type": "output"},
         )
 
         # Structured JSON log

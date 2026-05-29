@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import Any
 
 from picowatch.config import PicoWatchConfig
 from picowatch.prompt_guard.normalize import Normalizer
@@ -56,7 +57,7 @@ class PromptGuard:
         """Corpus version string."""
         return self._config.corpus_version
 
-    def check(self, text: str, context: dict | None = None) -> PromptScanResult:
+    def check(self, text: str, context: dict[str, Any] | None = None) -> PromptScanResult:
         """Scan a prompt for injection patterns.
 
         Args:

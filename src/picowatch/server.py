@@ -14,6 +14,7 @@ Rate limiting: Per-IP sliding window (ADR-008).
 from __future__ import annotations
 
 import secrets
+import uuid
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -26,7 +27,7 @@ from picowatch.health import health_check
 from picowatch.output_guard import OutputGuard
 from picowatch.prompt_guard import PromptGuard
 from picowatch.ratelimit import RateLimiter
-from picowatch.telemetry import TelemetrySink
+from picowatch.telemetry import TelemetrySink, init_tracing, trace_output_validation, trace_prompt_scan
 from picowatch.types import PromptScanResult
 
 # ─── Request/Response Models ──────────────────────────────────────────────
@@ -80,6 +81,12 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
     output_guard = OutputGuard(config=config)
     sink = TelemetrySink()
     limiter = RateLimiter(max_requests=config.rate_limit, window_seconds=config.rate_limit_window)
+
+    # Initialize OTel tracing (ADR-002) — no-op if dependencies missing
+    otel_enabled = init_tracing(service_name="picowatch", endpoint=config.otel_endpoint)
+    if otel_enabled:
+        import logging
+        logging.getLogger("picowatch.otel").info("OpenTelemetry tracing enabled (endpoint=%s)", config.otel_endpoint)
 
     # API key for write endpoints
     api_key = config.api_key or ""
@@ -196,8 +203,8 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
         # Enforce size limit
         if len(text) > config.max_prompt_size:
             return JSONResponse(
-                status_code=413,
-                content={
+                status_code=413,  # type: ignore[return-value]
+               content={
                     "blocked": True,
                     "score": 1.0,
                     "verdict": "block",
@@ -211,8 +218,15 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
 
         result = prompt_guard.check(text, context=body.context)
 
+        # Auto-generate request_id if not provided (ADR-002)
+        request_id = body.request_id or f"req-{uuid.uuid4().hex[:16]}"
+
         # Record telemetry
-        sink.record_prompt_scan(result, request_id=body.request_id)
+        sink.record_prompt_scan(result, request_id=request_id)
+
+        # Record OTel trace (ADR-002)
+        model = body.context.get("model") if body.context else None
+        trace_prompt_scan(result, model=model)
 
         response: dict[str, Any] = {
             "blocked": result.blocked,
@@ -228,8 +242,7 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
             response["normalized_input"] = result.normalized_input
         if result.details:
             response["details"] = result.details
-        if body.request_id:
-            response["request_id"] = body.request_id
+        response["request_id"] = request_id
 
         return response
 
@@ -254,8 +267,15 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
 
         result = output_guard.validate(body.output, schema=body.json_schema, prompt_result=prompt_result)
 
+        # Auto-generate request_id if not provided (ADR-002)
+        request_id = body.request_id or f"req-{uuid.uuid4().hex[:16]}"
+
         # Record telemetry
-        sink.record_validation(result, request_id=body.request_id)
+        sink.record_validation(result, request_id=request_id)
+
+        # Record OTel trace (ADR-002)
+        model = body.prompt_result.get("model") if body.prompt_result and isinstance(body.prompt_result, dict) else None
+        trace_output_validation(result, model=model)
 
         response: dict[str, Any] = {
             "valid": result.valid,
@@ -271,8 +291,7 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
             response["redacted"] = result.redacted
         if result.details:
             response["details"] = result.details
-        if body.request_id:
-            response["request_id"] = body.request_id
+        response["request_id"] = request_id
 
         return response
 
@@ -356,7 +375,16 @@ def run_server(config: PicoWatchConfig | None = None, host: str = "0.0.0.0", por
     config = config or PicoWatchConfig.from_env()
     app = create_app(config)
 
-    # Log admin port availability
+    # Spawn admin app on separate port (ADR-007)
+    admin_app = create_admin_app(config)
+    import threading
+    admin_thread = threading.Thread(
+        target=uvicorn.run,
+        args=(admin_app,),
+        kwargs={"host": host, "port": config.admin_port, "log_level": "warning"},
+        daemon=True,
+    )
+    admin_thread.start()
     print(f"PicoWatch admin endpoints on port {config.admin_port}", file=__import__("sys").stderr)
 
     uvicorn.run(app, host=host, port=port, log_level="info")
