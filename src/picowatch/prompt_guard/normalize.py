@@ -2,6 +2,7 @@
 
 Runs before all rule matching to strip obfuscation and normalise encoding.
 Pipeline order: Unicode NFKC → whitespace → spaced-text collapse → encoding detection
+→ punctuation-separator collapse → encoding detection
 → decode-then-rescan → comment stripping → markdown deobfuscation.
 Decoded payloads are re-scanned so encoded injections surface to the rule engine.
 """
@@ -47,17 +48,29 @@ class Normalizer:
     # form is 3+ consecutive word characters — common bypass technique.
     _SPACED_SINGLE_CHAR = re.compile(r"(?:^|(?<=\s))(\w)(?:\s+(\w)){2,}(?=\s|$|[,.;!?])")
 
+    # Separator punctuation between word characters: "i.g.n.o.r.e", "ignore_all_previous"
+    # Matches single word chars separated by . - _ / between other word chars
+    _SEPARATOR_PUNCT = re.compile(r"(?<=\w)[.\-_/](?=\w)")
+
+    # LLM token markers: <|im_start|>, <|im_end|>, etc. — preserve these
+    # during punctuation collapse so the rule engine can still match them.
+    _LLM_TOKEN_MARKER = re.compile(r"<\|[^|]+\|>")
+
     def normalize(self, text: str) -> str:
         """Full normalization pipeline.
 
-        Order matters: unicode → spaced-text (before whitespace collapse to preserve
-        word boundaries) → whitespace → comments → markdown.
-        Returns (normalized_text, decoded_texts) where decoded_texts contains
-        any payloads decoded during the pipeline for re-scanning.
+        Order matters:
+        1. unicode — NFKC normalization
+        2. spaced-text — collapse "i g n o r e" → "ignore" (before whitespace collapse)
+        3. separator-punct — collapse "i.g.n.o.r.e" → "ignore" (before whitespace collapse)
+        4. whitespace — collapse runs, normalize line endings
+        5. comments — strip HTML, C-style, line comments
+        6. markdown deobfuscation — strip zero-width characters
         """
         result = text
         result = self.normalize_unicode(result)
         result = self.collapse_spaced_text(result)
+        result = self.collapse_separator_punctuation(result)
         result = self.normalize_whitespace(result)
         result = self.strip_comments(result)
         result = self.deobfuscate_markdown(result)
@@ -150,6 +163,49 @@ class Normalizer:
                 result_parts.append(self._SPACED_SINGLE_CHAR.sub(_rejoin, segment))
 
         return "".join(result_parts)
+
+    def collapse_separator_punctuation(self, text: str) -> str:
+        """Collapse separator punctuation between word characters.
+
+        "ignore.all.previous.instructions" → "ignore all previous instructions"
+        "ignore-all-previous-instructions" → "ignore all previous instructions"
+        "ignore_all_previous_instructions" → "ignore all previous instructions"
+        "i.g.n.o.r.e" → "ignore"
+        "ignore/previous/instructions" → "ignore previous instructions"
+
+        This defeats the common bypass where punctuation separators (. - _ /)
+        are used between letters or words to break regex matches.
+        Same mechanism as collapse_spaced_text but for punctuation instead of spaces.
+
+        LLM token markers like <|im_start|> are preserved — their internal
+        underscores must not be collapsed or the marker detection rules break.
+        """
+        # Protect LLM token markers (<|im_start|>, <|im_end|>, etc.) from
+        # punctuation collapse. These are special syntax that should be
+        # preserved for rule matching.
+        placeholders: dict[str, str] = {}
+        for idx, match in enumerate(self._LLM_TOKEN_MARKER.finditer(text)):
+            placeholder = f"\x00LLMTOKEN{idx}\x00"
+            placeholders[placeholder] = match.group()
+
+        result = text
+        for placeholder, original in placeholders.items():
+            result = result.replace(original, placeholder)
+
+        # Replace separator punctuation between word characters with a space.
+        # "ignore.all.previous" → "ignore all previous"
+        # "i.g.n.o.r.e" → "i g n o r e"
+        result = self._SEPARATOR_PUNCT.sub(" ", result)
+
+        # Re-run spaced-text collapse to handle single-char sequences
+        # created by punctuation removal: "i g n o r e" → "ignore"
+        result = self.collapse_spaced_text(result)
+
+        # Restore LLM token markers
+        for placeholder, original in placeholders.items():
+            result = result.replace(placeholder, original)
+
+        return result
 
     def detect_encodings(self, text: str) -> str:
         """Flag encoded payloads. Kept for backward compatibility.
