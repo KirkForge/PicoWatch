@@ -4,7 +4,7 @@
 
 **Context:**
 
-PicoWatch needs to accept prompt/output inspection requests. It must work as a CLI tool, a Python library, an HTTP service, and a Shogun plugin. The transport layer must be flexible without adding complexity.
+PicoWatch needs to accept prompt/output inspection requests. It must work as a CLI tool, a Python library, an HTTP service, and a PicoShogun plugin. The transport layer must be flexible without adding complexity.
 
 Options considered:
 - **HTTP only** — requires running a server
@@ -13,7 +13,7 @@ Options considered:
 
 **Decision:**
 
-**Library-first with optional HTTP daemon.** Same architecture as MCP and Shogun's API server.
+**Library-first with optional HTTP daemon.** Same architecture as MCP and PicoShogun's API server.
 
 ### Transport Modes
 
@@ -21,8 +21,8 @@ Options considered:
 |------|----------|-----------|
 | **CLI** | One-shot scans, CI pipelines | stdin/argv → stdout (JSON) |
 | **Library** | Python integration | Direct function calls |
-| **HTTP daemon** | Microservice, Shogun remote | FastAPI on configurable port |
-| **Shogun plugin** | Integrated firewall | In-process Python adapter |
+| **HTTP daemon** | Microservice, PicoShogun remote | FastAPI on configurable port |
+| **Shogun plugin** | Integrated PicoShogun firewall | In-process Python adapter |
 
 ### HTTP API (when running as daemon)
 
@@ -55,7 +55,7 @@ Key settings:
 ### Deployment
 
 - **Single binary**: `pip install picowatch` → `picowatch` CLI
-- **Docker**: `Dockerfile` with multi-stage build (like PicoSentry/IronDome)
+- **Docker**: `Dockerfile` with multi-stage build (like PicoSentry like PicoSentry/IronDome PicoDome)
 - **Kubernetes**: Helm chart with readiness/liveness probes on `/v1/health`
 
 **Consequences:**

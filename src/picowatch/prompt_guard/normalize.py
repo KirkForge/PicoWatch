@@ -181,6 +181,7 @@ class Normalizer:
     def decode_url(self, text: str) -> str:
         """Decode URL-encoded text."""
         import urllib.parse
+
         return urllib.parse.unquote(text)
 
     def strip_comments(self, text: str) -> str:

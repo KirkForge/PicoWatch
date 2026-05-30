@@ -19,15 +19,11 @@ PicoWatch is a security tool. If you discover a vulnerability, please report it 
 
 ## Supply-Chain Security
 
-Per ADR-008, PicoWatch follows the Shogun platform hardening model:
-
-- **Zero mandatory dependencies** for core functionality
+- **Zero mandatory dependencies** for core functionality (stdlib + PyYAML only)
 - **Pinned dependencies** for all optional extras
-- **Self-scan**: CI runs PicoSentry against our own dependencies before merge
-- **Self-sandbox**: CI runs IronDome on any post-install hooks
-- **SLSA Level 3**: Build provenance attestation on every release
-- **SBOM**: CycloneDX SBOM generated on every release
-- **Signed releases**: GPG-signed tags for every version
+- **Self-scan**: CI runs PicoSentry against our own dependencies when available
+- **Self-sandbox**: CI runs PicoDome on post-install hooks when available
+- **SBOM**: CycloneDX SBOM generated on every build
 
 ## Runtime Security
 
@@ -37,13 +33,13 @@ Per ADR-008, PicoWatch follows the Shogun platform hardening model:
 - Input size limits: default 1MB max prompt size
 - Per-IP rate limiting on HTTP daemon (configurable)
 - API key authentication on write endpoints (configurable)
-- Audit log integrity: SQLite WAL with checksums
+- Audit log integrity: SQLite WAL with HMAC-SHA256 checksums
 
 ## Supported Versions
 
 | Version | Supported |
 |---------|-----------|
-| 0.5.x | Active development |
+| 0.7.x | Active development |
 | < 0.5 | Not supported |
 
 ## Scope
@@ -51,7 +47,7 @@ Per ADR-008, PicoWatch follows the Shogun platform hardening model:
 This policy covers:
 - The PicoWatch core library and CLI
 - The FastAPI HTTP server
-- The Shogun plugin adapter
+- The PicoShogun plugin adapter
 - Rule definitions and normalization pipeline
 
 Out of scope:

@@ -133,10 +133,11 @@ class RuleEngine:
         errors = len(self._load_errors)
         if loaded < expected_count:
             logger.warning(
-                "Rule coverage gap: loaded %d/%d rules (%d errors). "
-                "Rule IDs with issues: %s",
-                loaded, expected_count, errors,
-                ", ".join(self._load_errors[:5]) if self._load_errors else "none"
+                "Rule coverage gap: loaded %d/%d rules (%d errors). Rule IDs with issues: %s",
+                loaded,
+                expected_count,
+                errors,
+                ", ".join(self._load_errors[:5]) if self._load_errors else "none",
             )
         logger.info("Loaded %d rules (expected %d, %d compile/load errors)", loaded, expected_count, errors)
 

@@ -1,10 +1,10 @@
-"""Shogun Iron Dome firewall integration adapter.
+"""PicoShogun firewall integration adapter.
 
-PicoWatch loads as a Shogun plugin implementing the WatchGuard protocol.
-Pipeline order: L1 (rate limit) → L2 (PicoSentry) → L3 (sandbox) → L4 (behavioral)
+PicoWatch loads as a PicoShogun plugin implementing the WatchGuard protocol.
+Pipeline order: L1 (rate limit) → L2 (PicoSentry) → L3 (PicoDome sandbox) → L4 (PicoDome behavioral)
                 → L5 (PicoWatch prompt) → L6 (PicoWatch output)
 
-Usage in Shogun config:
+Usage in PicoShogun config:
     plugins:
       - picowatch.shogun:PicoWatchPlugin
     picowatch:
@@ -25,13 +25,13 @@ from picowatch.prompt_guard import PromptGuard
 from picowatch.telemetry import TelemetrySink
 from picowatch.types import PromptScanResult, ValidationResult
 
-# ─── WatchGuard Protocol (Shogun interface) ────────────────────────────────
+# ─── WatchGuard Protocol (PicoShogun interface) ────────────────────────────────
 
 
 class WatchGuard(Protocol):
-    """Shogun WatchGuard protocol — all plugins implement this interface.
+    """PicoShogun WatchGuard protocol — all plugins implement this interface.
 
-    Shogun calls these methods when events flow through the firewall pipeline.
+    PicoShogun calls these methods when events flow through the firewall pipeline.
     """
 
     def scan_prompt(self, text: str, context: dict[str, Any] | None = None) -> PromptScanResult:
@@ -52,20 +52,20 @@ class WatchGuard(Protocol):
         ...
 
 
-# ─── PicoWatch Shogun Plugin ──────────────────────────────────────────────
+# ─── PicoWatch PicoShogun Plugin ──────────────────────────────────────────────
 
 
 class PicoWatchPlugin:
-    """Shogun Iron Dome plugin adapter for PicoWatch.
+    """PicoShogun firewall plugin adapter for PicoWatch.
 
-    Implements the WatchGuard protocol so Shogun can load PicoWatch
+    Implements the WatchGuard protocol so PicoShogun can load PicoWatch
     as an L5/L6 filter in the firewall pipeline.
 
     Usage:
-        plugin = PicoWatchPlugin(config=shogun_config.get("picowatch", {}))
+        plugin = PicoWatchPlugin(config=picoshogun_config.get("picowatch", {}))
         result = plugin.scan_prompt("ignore all instructions")
 
-    In Shogun's YAML config:
+    In PicoShogun's YAML config:
         plugins:
           - picowatch.shogun:PicoWatchPlugin
         picowatch:
@@ -75,13 +75,13 @@ class PicoWatchPlugin:
 
     name: ClassVar[str] = "picowatch"
     version: ClassVar[str] = __version__
-    layers: ClassVar[list[int]] = [5, 6]  # L5 + L6 in Shogun pipeline
+    layers: ClassVar[list[int]] = [5, 6]  # L5 + L6 in PicoShogun pipeline
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        """Initialize plugin from Shogun config dict.
+        """Initialize plugin from PicoShogun config dict.
 
         Args:
-            config: Shogun's picowatch config section (from YAML).
+            config: PicoShogun's picowatch config section (from YAML).
                     Keys map to PicoWatchConfig fields.
         """
         pw_config = self._build_config(config or {})
@@ -92,10 +92,10 @@ class PicoWatchPlugin:
         self._pw_config = pw_config
 
     def _build_config(self, config: dict[str, Any]) -> PicoWatchConfig:
-        """Build PicoWatchConfig from Shogun config dict.
+        """Build PicoWatchConfig from PicoShogun config dict.
 
-        Maps Shogun's YAML keys to PicoWatchConfig fields.
-        Environment variables take precedence over Shogun config.
+        Maps PicoShogun's YAML keys to PicoWatchConfig fields.
+        Environment variables take precedence over PicoShogun config.
         """
         import os
         from pathlib import Path
@@ -127,7 +127,7 @@ class PicoWatchPlugin:
     def scan_prompt(self, text: str, context: dict[str, Any] | None = None) -> PromptScanResult:
         """L5: Scan a prompt for injection patterns.
 
-        Called by Shogun when a prompt event reaches L5 in the pipeline.
+        Called by PicoShogun when a prompt event reaches L5 in the pipeline.
         Telemetry is automatically recorded.
         """
         result = self._prompt_guard.check(text, context=context)
@@ -142,7 +142,7 @@ class PicoWatchPlugin:
     ) -> ValidationResult:
         """L6: Validate an LLM output.
 
-        Called by Shogun when an output event reaches L6 in the pipeline.
+        Called by PicoShogun when an output event reaches L6 in the pipeline.
         Feedback loop: if prompt_result is flagged, output validation is stricter.
         Telemetry is automatically recorded.
         """
@@ -151,7 +151,7 @@ class PicoWatchPlugin:
         return result
 
     def health(self) -> dict[str, Any]:
-        """Return plugin health status for Shogun's pipeline monitor."""
+        """Return plugin health status for PicoShogun's pipeline monitor."""
         uptime = time.perf_counter() - self._start_time
         return {
             "plugin": self.name,
@@ -164,12 +164,12 @@ class PicoWatchPlugin:
             "uptime_seconds": round(uptime, 1),
         }
 
-    # ─── Shogun Event Bus Integration ───────────────────────────────────
+    # ─── PicoShogun Event Bus Integration ───────────────────────────────────
 
     def on_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
-        """Handle an event from Shogun's event bus.
+        """Handle an event from PicoShogun's event bus.
 
-        Shogun dispatches events to plugins. PicoWatch handles:
+        PicoShogun dispatches events to plugins. PicoWatch handles:
         - 'prompt_received' → L5 scan
         - 'output_generated' → L6 validation
         - 'health_check' → health status
@@ -220,8 +220,8 @@ class PicoWatchPlugin:
 
         return None  # Unknown event type — pass through
 
-    # ─── Prometheus Metrics for Shogun ──────────────────────────────────
+    # ─── Prometheus Metrics for PicoShogun ──────────────────────────────────
 
     def metrics(self) -> str:
-        """Return Prometheus-formatted metrics for Shogun's aggregator."""
+        """Return Prometheus-formatted metrics for PicoShogun's aggregator."""
         return self._sink.render_prometheus()

@@ -1,19 +1,19 @@
-# ADR-005: Integration Interface — Standalone-First with Shogun Binding
+# ADR-005: Integration Interface — Standalone-First with PicoShogun Binding
 
 **Status:** Accepted
 
 **Context:**
 
-PicoWatch must work standalone (like IronDome and PicoSentry) while also integrating into Shogun's Iron Dome firewall when available. The integration must be loose — PicoWatch should not import Shogun code or require Shogun to run.
+PicoWatch must work standalone (like PicoDome and PicoSentry) while also integrating into PicoShogun's firewall when available. The integration must be loose — PicoWatch should not import PicoShogun code or require PicoShogun to run.
 
 Options considered:
-- **Tight coupling** — import Shogun modules directly
+- **Tight coupling** — import PicoShogun modules directly
 - **HTTP API only** — communicate via REST/WebSocket
-- **Python library + optional adapter** — import as library, with a Shogun adapter that hooks into the event bus
+- **Python library + optional adapter** — import as library, with a PicoShogun adapter that hooks into the event bus
 
 **Decision:**
 
-**Python library first, with an optional Shogun adapter.**
+**Python library first, with an optional PicoShogun adapter.**
 
 ### Standalone Mode
 
@@ -27,12 +27,12 @@ sink = TelemetrySink()
 sink.record_prompt_scan(result)
 ```
 
-### Shogun Integration Mode
+### PicoShogun Integration Mode
 
-When Shogun is present, PicoWatch loads as a plugin:
+When PicoShogun is present, PicoWatch loads as a plugin:
 
 ```yaml
-# In Shogun's config
+# In PicoShogun's config
 plugins:
   picowatch:
     enabled: true
@@ -45,17 +45,17 @@ plugins:
         otel_endpoint: localhost:4317
 ```
 
-Shogun calls PicoWatch's defense functions through a thin adapter that:
-1. Receives events from Shogun's event bus
+PicoShogun calls PicoWatch's defense functions through a thin adapter that:
+1. Receives events from PicoShogun's event bus
 2. Passes prompts through L5 PromptGuard
 3. Passes responses through L6 OutputGuard
-4. Emits L7 telemetry back to Shogun's metrics pipeline
+4. Emits L7 telemetry back to PicoShogun's metrics pipeline
 
 ### Interface Contract
 
 ```python
 class WatchGuard(Protocol):
-    """Protocol that both standalone and Shogun modes implement."""
+    """Protocol that both standalone and PicoShogun modes implement."""
     def scan_prompt(self, text: str, context: dict | None = None) -> PromptScanResult: ...
     def validate_output(self, output: str, schema: dict | None = None) -> ValidationResult: ...
     def health(self) -> HealthStatus: ...
@@ -63,7 +63,7 @@ class WatchGuard(Protocol):
 
 ### Firewall Binding
 
-In Shogun, PicoWatch's PromptGuard and OutputGuard are wired into the Iron Dome firewall pipeline as L5/L6 filters. The firewall runs: L1 (rate limit) → L2 (PicoSentry static scan) → L3 (sandbox) → L4 (behavioral) → L5 (PicoWatch prompt guard) → L6 (PicoWatch output guard).
+In PicoShogun, PicoWatch's PromptGuard and OutputGuard are wired into the PicoShogun firewall pipeline as L5/L6 filters. The firewall runs: L1 (rate limit) → L2 (PicoSentry static scan) → L3 (PicoDome sandbox) → L4 (PicoDome behavioral) → L5 (PicoWatch prompt guard) → L6 (PicoWatch output guard).
 
 ### CLI
 
@@ -73,16 +73,16 @@ The `picowatch` CLI works in all modes:
 # Standalone scan
 picowatch scan-prompt --text "hello"
 
-# Daemon mode (Shogun calls via HTTP)
+# Daemon mode (PicoShogun calls via HTTP)
 picowatch serve --port 8766
 
-# Shogun plugin mode (loaded by Shogun process)
+# PicoShogun plugin mode (loaded by PicoShogun process)
 picowatch --shogun-plugin
 ```
 
 **Consequences:**
 
-✅ Positive: PicoWatch works without Shogun — no coupling.
-✅ Positive: Shogun integration is a thin adapter, not a rewrite.
+✅ Positive: PicoWatch works without PicoShogun — no coupling.
+✅ Positive: PicoShogun integration is a thin adapter, not a rewrite.
 ✅ Positive: Protocol-based interface allows mocking in tests.
 ⚠️ Negative: Maintaining two modes (standalone + plugin) adds test surface.

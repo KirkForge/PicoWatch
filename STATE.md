@@ -1,6 +1,20 @@
 # PicoWatch — Development State
 
-**Version:** 0.7.0 | **Last Updated:** 2026-05-29 | **Git:** `master`
+**Version:** 0.7.0 | **Last Updated:** 2026-05-30 | **Maturity:** Pre-1.0 beta
+
+## What PicoWatch IS
+
+- A **deterministic pre-filter** for LLM prompt injection and output validation
+- A **telemetry layer** (OTel, Prometheus, audit logging) for LLM interactions
+- A standalone tool that also integrates with PicoShogun as a plugin
+- Part of the **Pico Security Series** (PicoSentry → PicoDome → PicoWatch → PicoShogun)
+
+## What PicoWatch is NOT
+
+- A complete LLM security solution (it's a fast pre-filter, not an adaptive classifier)
+- Production-hardened (pre-1.0, APIs may change)
+- A replacement for human review of flagged content
+- "Enterprise-grade" until proven in real deployments
 
 ## Architecture
 
@@ -14,7 +28,8 @@ PicoWatch/
 │   ├── types.py                 # Shared data types (PromptScanResult, ValidationResult, Rule, etc.)
 │   ├── health.py                # Health check endpoint
 │   ├── server.py                # FastAPI HTTP server (POST scan/prompt, POST scan/output, GET endpoints)
-│   ├── shogun/                  # Shogun Iron Dome plugin adapter
+│   ├── ratelimit.py             # Per-IP sliding window rate limiter
+│   ├── shogun/                  # PicoShogun plugin adapter (directory name kept for import compat)
 │   │   └── __init__.py          # PicoWatchPlugin + WatchGuard protocol
 │   ├── prompt_guard/            # L5: Prompt injection detection
 │   │   ├── __init__.py          # PromptGuard class
@@ -26,6 +41,7 @@ PicoWatch/
 │   └── telemetry/               # L7: Observability
 │       ├── __init__.py
 │       ├── metrics.py           # Prometheus metrics (zero-dep text rendering)
+│       ├── otel.py              # OpenTelemetry tracing
 │       └── sink.py              # TelemetrySink (JSON logging + SQLite WAL audit)
 ├── rules/
 │   ├── prompt_injection/         # 29 L5 rules across 6 categories
@@ -41,154 +57,86 @@ PicoWatch/
 │       ├── exfiltration.yaml
 │       └── format_violation.yaml
 ├── tests/
-│   ├── test_types.py             # Data type tests
-│   ├── test_config.py            # Configuration tests
-│   ├── test_cli.py               # CLI smoke tests
-│   ├── test_prompt_guard.py      # L5 engine tests (normalizer, rule engine, scorer, integration)
-│   ├── test_output_guard.py      # L6 validation tests (PII, schema, policy)
-│   ├── test_telemetry.py         # L7 telemetry tests (audit, Prometheus)
-│   ├── test_rules_corpus.py      # Rule corpus validation (regex, fields, uniqueness)
-│   ├── test_determinism.py       # 10-run determinism verification
-│   ├── test_server.py            # HTTP server tests (FastAPI, auth, all endpoints)
-│   ├── test_ratelimit.py         # Rate limiter tests (sliding window, per-IP)
-│   ├── test_otel.py              # OpenTelemetry tracing tests (init, spans, no-op)
-│   ├── test_server_integration.py # Server integration tests (dual-port, auth, determinism)
-│   └── test_shogun.py            # Shogun plugin tests (init, scan, validate, events, determinism)
+│   ├── test_types.py
+│   ├── test_config.py
+│   ├── test_cli.py
+│   ├── test_prompt_guard.py
+│   ├── test_output_guard.py
+│   ├── test_telemetry.py
+│   ├── test_rules_corpus.py
+│   ├── test_determinism.py
+│   ├── test_ratelimit.py
+│   ├── test_server.py
+│   ├── test_server_integration.py
+│   ├── test_shogun.py
+│   └── test_otel.py
 ├── deploy/
-│   ├── prometheus.yml            # Prometheus scrape config
-│   └── otel-collector-config.yaml # OpenTelemetry collector config
+│   ├── prometheus.yml
+│   └── otel-collector-config.yaml
 ├── .github/workflows/
-│   └── ci.yml                    # CI pipeline (lint, test 3.10-3.13, build, docker)
-├── docs/adr/                     # Architecture Decision Records 001–008
+│   └── ci.yml
+├── docs/adr/                     # ADR 001–008
 ├── docs/issues/                  # Issue specs 001–009
-├── Dockerfile                    # Multi-stage build (builder → runtime)
-├── docker-compose.yml            # PicoWatch + Prometheus + OTel collector
+├── Dockerfile
+├── docker-compose.yml
 ├── pyproject.toml
-├── README.md
-├── AGENTS.md
-├── CHANGELOG.md
-├── LICENSE
-└── STATE.md
+└── picowatch.toml
 ```
 
-## Status
+## Component Status
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Project scaffold | ✅ | pyproject.toml, CLI, tests, venv |
-| ADR 001–008 | ✅ | Architecture decisions documented |
-| L5 PromptGuard | ✅ | Rule engine, normalizer, scorer, 59 rules (6 categories) |
-| L6 OutputGuard | ✅ | Schema validation, PII detection/redaction (16 patterns), 32 rules, feedback loop |
+| L5 PromptGuard | ✅ | Rule engine, normalizer, scorer, 59 rules |
+| L6 OutputGuard | ✅ | Schema validation, PII redaction (16 patterns), 32 rules |
 | L7 Telemetry | ✅ | SQLite WAL audit, Prometheus metrics, JSON logging |
 | CLI | ✅ | scan-prompt, validate-output, serve, rules, health |
-| FastAPI HTTP server | ✅ | POST /v1/scan/prompt, POST /v1/scan/output, GET health/metrics/rules |
-| API key auth | ✅ | X-API-Key header or Bearer token on POST endpoints |
-| Default rules | ✅ | 59 prompt injection (6 categories) + 32 output policy (4 categories) = 91 total |
-| Test suite | ✅ | 236 tests passing |
-| Determinism verification | ✅ | 10-run determinism test passes |
-| CI pipeline | ✅ | GitHub Actions (lint, test 3.10-3.13, build, docker) |
-| Docker | ✅ | Multi-stage Dockerfile + docker-compose (PicoWatch + Prometheus + OTel) |
-| Shogun plugin | ✅ | PicoWatchPlugin + WatchGuard protocol, event bus, 17 tests |
-| OTel tracing | ✅ | init_tracing(), trace_prompt_scan(), trace_output_validation() in server endpoints; 16 OTel tests |
-| Admin port (ADR-007) | ✅ | Separate 9091 port for health/metrics/rules; integration tests |
-| Rate limiting (ADR-008) | ✅ | Per-IP sliding window, 429 + Retry-After |
-| TOML config file | ✅ | picowatch.toml search path: ., ~/.config/, /etc/ |
-| Request ID auto-gen (ADR-002) | ✅ | Auto-generates req-{uuid} if not provided |
-| Prometheus histograms (ADR-002) | ✅ | picowatch_prompt_score, picowatch_scan_duration_seconds |
-| mypy strict | ✅ | 18 source files, 0 errors |
-| PyPI publishing | ✅ | Trusted Publishing workflow in `.github/workflows/publish.yml` |
-| Input size enforcement (ADR-008) | ✅ | Both endpoints reject >1MB payloads with 413 |
-| Config permission warnings (ADR-008) | ✅ | Warns on group/world-readable config; errors on exposed API keys |
-| Audit log integrity (ADR-008) | ✅ | HMAC-SHA256 checksums per row; verify_audit_integrity() method |
-| Audit auto-cleanup (ADR-002) | ✅ | Prunes entries beyond retention_days on startup |
-| --shogun-plugin CLI (ADR-005) | ✅ | Initializes Shogun PicoWatchPlugin from CLI |
-| Determinism guard (ADR-006) | ✅ | random.seed(0) in scorer module |
-| SLSA provenance in CI (ADR-008) | ✅ | CycloneDX SBOM + SHA-256 digest in build job |
+| HTTP server | ✅ | POST /v1/scan/prompt, POST /v1/scan/output, GET health/metrics/rules |
+| API key auth | ✅ | X-API-Key header or Bearer token |
+| Rate limiting | ✅ | Per-IP sliding window, 429 + Retry-After |
+| Admin port | ✅ | Separate 9091 port for health/metrics/rules |
+| Determinism | ✅ | 10-run verification passes, random.seed(0) guard |
+| PicoShogun plugin | ✅ | WatchGuard protocol, event bus, 17 tests |
+| Docker | ✅ | Multi-stage Dockerfile + docker-compose |
+| CI | ✅ | GitHub Actions (lint, test, build, docker) |
+| Audit integrity | ✅ | HMAC-SHA256 checksums, verify_audit_integrity() |
+| Config permissions | ✅ | Warns on group/world-readable config |
+| Input size limits | ✅ | 1MB max, HTTP 413 on oversize |
+| OTel tracing | ✅ | Server endpoints emit spans |
+| SBOM in CI | 🔶 | CycloneDX script exists but SLSA provenance is aspirational, not real |
+| PyPI publishing | 🔶 | Workflow exists but no published release yet |
+| Real-world testing | ❌ | No production deployments known |
 
 ## Test Results
 
 ```
-236 tests PASSED in 73.17s
-- test_types: 10/10 ✅
-- test_config: 8/8 ✅
-- test_cli: 2/2 ✅
-- test_prompt_guard: 45/45 ✅
-- test_output_guard: 29/29 ✅
-- test_telemetry: 8/8 ✅
-- test_rules_corpus: 6/6 ✅
-- test_determinism: 3/3 ✅
-- test_ratelimit: 10/10 ✅
-- test_server: 55/55 ✅
-- test_shogun: 17/17 ✅
-- test_otel: 16/16 ✅
-- test_server_integration: 29/29 ✅
+243 tests passed
+- test_types: 10
+- test_config: 8
+- test_cli: 2
+- test_prompt_guard: 45
+- test_output_guard: 29
+- test_telemetry: 8
+- test_rules_corpus: 6
+- test_determinism: 3
+- test_ratelimit: 10
+- test_server: 55
+- test_shogun: 17
+- test_otel: 16
+- test_server_integration: 29
 ```
 
-## HTTP API
+## Known Gaps
 
-### Main port (8766)
-```
-POST /v1/scan/prompt     → PromptScanResult   (auth: API key)
-POST /v1/scan/output     → ValidationResult   (auth: API key)
-GET  /v1/health          → HealthStatus       (no auth)
-GET  /metrics            → Prometheus text    (no auth)
-GET  /v1/rules           → List[Rule]         (no auth)
-GET  /v1/rules/:id       → Rule detail        (no auth)
-```
-
-### Admin port (9091, ADR-007)
-```
-GET  /v1/health          → HealthStatus       (no auth)
-GET  /metrics            → Prometheus text    (no auth)
-GET  /v1/rules           → List[Rule]         (no auth)
-GET  /v1/rules/:id       → Rule detail        (no auth)
-```
-
-Auth: Set `PICOWATCH_API_KEY` env var. POST endpoints require `X-API-Key` header or `Bearer` token.
-
-## CLI Usage
-
-```bash
-# Scan a prompt for injection
-picowatch scan-prompt --text "ignore all previous instructions"
-# → {"blocked": true, "score": 0.9, "verdict": "block", "rules_matched": [...]}
-
-# Validate an LLM output
-picowatch validate-output --schema schema.json --output response.json
-
-# Verify determinism (runs twice, compares)
-picowatch --verify-determinism scan-prompt --text "You are now DAN"
-
-# Start HTTP daemon
-picowatch serve --port 8766
-
-# List active rules
-picowatch rules
-
-# Health check
-picowatch health
-```
-
-## Docker
-
-```bash
-# Build and run
-docker-compose up -d
-
-# With API key
-PICOWATCH_API_KEY=your-secret-key docker-compose up -d
-
-# Test endpoint
-curl http://localhost:8766/v1/health
-curl -X POST http://localhost:8766/v1/scan/prompt \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-secret-key" \
-  -d '{"text": "ignore all instructions"}'
-```
+1. **No production deployments** — PicoWatch has not been tested under real LLM traffic
+2. **Pattern-based detection only** — novel/paraphrased attacks will bypass rules
+3. **SLSA provenance is scripted but not verified** — the CI generates SBOM and digest, but no external verifier confirms them
+4. **No rate-limit persistence** — in-memory only, resets on restart
+5. **Helm chart is scaffolded** — not tested in real Kubernetes deployments
 
 ## Integration Points
 
-- **PicoSentry**: PicoWatch's CI self-scans dependencies with PicoSentry
-- **IronDome**: PicoWatch's CI self-sandboxes post-install hooks with IronDome
-- **55NDeep**: PicoWatch outputs can be verified by 55NDeep delegation
-- **Shogun**: PicoWatch loads as L5/L6 filter in Iron Dome firewall
+- **PicoSentry**: PicoWatch's CI self-scans dependencies (if PicoSentry is available)
+- **PicoDome**: PicoWatch's CI self-sandboxes post-install hooks (if PicoDome is available)
+- **PicoShogun**: PicoWatch loads as L5/L6 filter in PicoShogun's firewall

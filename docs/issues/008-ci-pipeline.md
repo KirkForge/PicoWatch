@@ -8,7 +8,7 @@ ADR-008 supply-chain hardening.
 
 - ci-cleandev v3 pipeline: ruff → mypy → pytest → build → hash check
 - PicoSentry self-scan of dependencies in CI
-- IronDome self-sandbox of post-install hooks in CI
+- PicoDome self-sandbox of post-install hooks in CI
 - Reproducible build verification (same source = same wheel hash)
 - SLSA L3 build provenance
 - CycloneDX SBOM on release

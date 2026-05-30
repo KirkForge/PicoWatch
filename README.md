@@ -1,18 +1,17 @@
-# PicoWatch 👁️
+# PicoWatch
 
 ![PicoWatch Banner](docs/banner.png)
 
-**LLM defender with telemetry — prompt injection detection, output validation, and observability.**
+**LLM prompt injection detection, output validation, and telemetry.** Pre-1.0 beta — works, but not production-hardened yet.
 
 [![CI](https://github.com/KirkForge/PicoWatch/actions/workflows/ci.yml/badge.svg)](https://github.com/KirkForge/PicoWatch)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![Rules](https://img.shields.io/badge/rules-91-blue)](rules/)
-[![Tests](https://img.shields.io/badge/tests-159-green)](tests/)
-[![License: KirkForge](https://img.shields.io/badge/license-KirkForge%20Personal%20Use-orange)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-243-green)](tests/)
+[![License: BUSL-1.1](https://img.shields.io/badge/license-BUSL--1.1-orange)](LICENSE)
 [![KirkForge](https://img.shields.io/badge/org-KirkForge-blue)](https://github.com/KirkForge)
-[![Buy Me a Coffee](https://img.shields.io/badge/%E2%98%95-Buy%20Me%20a%20Coffee-yellow)](https://buymeacoffee.com/kirkforge)
 
-PicoWatch is the 4th product in the [Shogun](https://github.com/KirkForge/Shogun) security platform. It runs **standalone** or integrates into Shogun's Iron Dome firewall layer.
+PicoWatch is the 3rd product in the [Pico Security Series](https://github.com/KirkForge). It runs **standalone** or integrates into PicoShogun's firewall layer.
 
 ## What It Does
 
@@ -22,7 +21,7 @@ PicoWatch is the 4th product in the [Shogun](https://github.com/KirkForge/Shogun
 | **L6** | Output Guard | Validates LLM outputs against schemas, content policies, and PII/exfiltration rules |
 | **L7** | Telemetry | OpenTelemetry traces, Prometheus metrics, audit logging — full observability for every request |
 
-## Threat Model
+## Threat Model — Honest Limits
 
 PicoWatch is a **fast deterministic pre-filter and telemetry layer** — not a complete solution for LLM prompt injection defense.
 
@@ -33,20 +32,20 @@ PicoWatch is a **fast deterministic pre-filter and telemetry layer** — not a c
 - Detect encoding-based obfuscation (base64, ROT13, URL-encoding) via decode-then-rescan
 
 **What it does NOT guarantee:**
-- Adaptive attackers can bypass pattern-based detection through paraphrase, translation, novel framings, or spaced-out text (though the spaced-text normalizer catches simple cases)
-- A `score=0.94, blocked=True` result means a strong rule match, not a mathematical proof of injection — it reflects pattern confidence, not adversarial robustness
-- Encoding detection flags the *presence* of encoded payloads; decoded payloads are re-scanned, but novel encoding schemes may evade detection
+- Adaptive attackers can bypass pattern-based detection through paraphrase, translation, novel framings, or spaced-out text
+- A `score=0.94, blocked=True` result means a strong rule match, not a mathematical proof of injection
+- Encoding detection flags the *presence* of encoded payloads; novel encoding schemes may evade detection
 
-**Recommended deployment:** Use PicoWatch as a first-pass filter in a defense-in-depth stack. Pair it with LLM-based classifiers, output guards, and monitoring for layers that handle what pattern matching cannot.
+**Recommended deployment:** Use PicoWatch as a first-pass filter in a defense-in-depth stack. Pair it with LLM-based classifiers and output guards for layers that handle what pattern matching cannot.
 
-## Shogun Defense Stack
+## Pico Security Series
 
 | Product | Layer | Focus |
 |---------|-------|-------|
 | **PicoSentry** | L2 | Static supply-chain scanning |
-| **IronDome** | L3/L4 | Runtime sandbox + behavioral analysis |
-| **55NDeep** | Delegation | JSON schema + lang battery → cheap subagent writes code, GitNexus diffs keep drift near zero |
+| **PicoDome** | L3/L4 | Runtime sandbox + behavioral analysis |
 | **PicoWatch** | L5/L6/L7 | LLM prompt/output defense + telemetry |
+| **PicoShogun** | Command centre | Firewall + dashboard for the Pico series |
 
 ## Quick Start
 
@@ -123,7 +122,7 @@ See `docs/adr/` for the full decision log.
 - [ADR-002](docs/adr/ADR-002-telemetry.md) — OpenTelemetry + Prometheus observability
 - [ADR-003](docs/adr/ADR-003-prompt-injection.md) — Deterministic injection detection rules
 - [ADR-004](docs/adr/ADR-004-output-validation.md) — Schema + policy output validation
-- [ADR-005](docs/adr/ADR-005-integration.md) — Standalone-first with Shogun integration
+- [ADR-005](docs/adr/ADR-005-integration.md) — Standalone-first with PicoShogun integration
 - [ADR-006](docs/adr/ADR-006-determinism.md) — Deterministic rule evaluation
 - [ADR-007](docs/adr/ADR-007-transport.md) — Transport and deployment model
 - [ADR-008](docs/adr/ADR-008-security.md) — Supply-chain hardening
@@ -140,4 +139,4 @@ mypy src
 
 ## License
 
-KirkForge Personal Use License. See [LICENSE](LICENSE).
+BUSL-1.1. See [LICENSE](LICENSE).

@@ -143,22 +143,22 @@ def _rules(args: argparse.Namespace, config: PicoWatchConfig) -> None:
 
 
 def _run_shogun_plugin(config: PicoWatchConfig) -> None:
-    """Run as Shogun Iron Dome plugin (ADR-005).
+    """Run as PicoShogun plugin (ADR-005).
 
-    Loads PicoWatch as an in-process plugin in Shogun's firewall pipeline.
+    Loads PicoWatch as an in-process plugin in PicoShogun's firewall pipeline.
     The plugin listens for events and provides L5/L6 filtering.
     """
     from picowatch.shogun import PicoWatchPlugin
 
     plugin = PicoWatchPlugin()
     h = plugin.health()
-    print(f"PicoWatch Shogun plugin v{h['version']} loaded", file=sys.stderr)
+    print(f"PicoWatch PicoShogun plugin v{h['version']} loaded", file=sys.stderr)
     print("  Layers: L5 (prompt guard) + L6 (output guard)", file=sys.stderr)
     print(f"  Rules loaded: {h['rules_loaded']}", file=sys.stderr)
     print(f"  Corpus hash: {h['corpus_hash']}", file=sys.stderr)
     print(f"  Corpus version: {h['corpus_version']}", file=sys.stderr)
-    print("Ready for Shogun event bus integration.", file=sys.stderr)
-    # In production, Shogun would call plugin.on_event() directly.
+    print("Ready for PicoShogun event bus integration.", file=sys.stderr)
+    # In production, PicoShogun would call plugin.on_event() directly.
     # For standalone testing, we expose the plugin for import.
     print(json.dumps({"plugin": "picowatch", "status": "ready", **h}, indent=2))
 
@@ -171,7 +171,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--verify-determinism", action="store_true", help="Run twice and compare results")
-    parser.add_argument("--shogun-plugin", action="store_true", help="Run as Shogun Iron Dome plugin (ADR-005)")
+    parser.add_argument("--shogun-plugin", action="store_true", help="Run as PicoShogun plugin (ADR-005)")
     sub = parser.add_subparsers(dest="command")
 
     # scan-prompt

@@ -1,4 +1,4 @@
-"""Tests for PicoWatch Shogun plugin adapter."""
+"""Tests for PicoWatch PicoShogun plugin adapter."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ class TestPluginInit:
         assert plugin.layers == [5, 6]
 
     def test_init_with_config(self) -> None:
-        """Plugin initializes with Shogun config dict."""
+        """Plugin initializes with PicoShogun config dict."""
         plugin = PicoWatchPlugin(config={"threshold_block": 0.5, "threshold_warn": 0.2})
         assert plugin._pw_config.threshold_block == 0.5
         assert plugin._pw_config.threshold_warn == 0.2
@@ -104,7 +104,7 @@ class TestValidateOutput:
 
 
 class TestOnEvent:
-    """Shogun event bus dispatch."""
+    """PicoShogun event bus dispatch."""
 
     def test_prompt_received_event(self) -> None:
         """prompt_received event dispatches to scan_prompt."""
@@ -173,7 +173,7 @@ class TestOnEvent:
 
 
 class TestMetrics:
-    """Prometheus metrics output for Shogun aggregator."""
+    """Prometheus metrics output for PicoShogun aggregator."""
 
     def test_metrics_returns_string(self) -> None:
         """Metrics method returns Prometheus text format."""

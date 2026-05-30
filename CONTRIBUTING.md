@@ -52,7 +52,7 @@ PicoWatch has three independent subsystems (ADR-001):
 | L6 | `output_guard` | Output validation + PII redaction |
 | L7 | `telemetry` | Observability (OTel, Prometheus, audit) |
 
-Each layer is independently testable. The Shogun plugin (`shogun/`) composes them.
+Each layer is independently testable. The PicoShogun plugin adapter (`shogun/`) composes them.
 
 ## Adding Rules
 

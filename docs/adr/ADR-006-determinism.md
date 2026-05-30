@@ -4,7 +4,7 @@
 
 **Context:**
 
-PicoWatch inherits the Shogun platform's determinism requirement. PicoSentry guarantees same input + same corpus = same output. IronDome guarantees same command + same policy = same verdict. PicoWatch must make the same guarantee for prompt/output defense.
+PicoWatch inherits the Shogun platform's determinism requirement. PicoSentry guarantees same input + same corpus = same output. PicoDome guarantees same command + same policy = same verdict. PicoWatch must make the same guarantee for prompt/output defense.
 
 The challenge: scoring thresholds, rule ordering, and normalization could introduce nondeterminism if not carefully controlled.
 
@@ -44,7 +44,7 @@ class PromptScanResult:
 
 ### Verification Mode
 
-Like PicoSentry and IronDome, PicoWatch supports `--verify-determinism`:
+Like PicoSentry and PicoDome, PicoWatch supports `--verify-determinism`:
 
 ```bash
 picowatch scan-prompt --text "test input" --verify-determinism

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "picowatch"
 version = "0.7.0"
-description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability for the Shogun platform"
+description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability"
 readme = "README.md"
 license = {text = "KirkForge Personal Use License"}
 requires-python = ">=3.10"
