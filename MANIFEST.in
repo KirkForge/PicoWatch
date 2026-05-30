@@ -2,5 +2,6 @@ include LICENSE
 include README.md
 include CHANGELOG.md
 include STATE.md
-recursive-include rules *.yaml *.yml
-recursive-include deploy *.yml *.yaml
+# Rule YAML files are now bundled inside src/picowatch/rules/ as package data.
+# The top-level rules/ directory is kept for Docker volume mounts and dev use only.
+# It is NOT included in sdist to avoid duplicate corpus drift.

@@ -196,7 +196,15 @@ def check_config_permissions() -> list[str]:
             # Check if api_key is in a world-readable file
             try:
                 content = path.read_text(encoding="utf-8")
-                if "api_key" in content.lower() and (mode & stat.S_IROTH):
+                # Only warn if api_key has an actual value, not just a comment.
+                # Strip TOML comments (# ...) before checking to avoid false positives.
+                lines = [line.split("#")[0].strip() for line in content.splitlines()]
+                has_real_api_key = any(
+                    line.startswith("api_key") and "=" in line and line.split("=", 1)[1].strip()
+                    for line in lines
+                    if line
+                )
+                if has_real_api_key and (mode & stat.S_IROTH):
                     msg = f"SECURITY: api_key found in world-readable config {path}. Consider: chmod 600 {path}"
                     warnings.append(msg)
                     logger.error(msg)
