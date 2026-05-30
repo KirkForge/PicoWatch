@@ -6,21 +6,20 @@ Thresholds: block >= 0.7, warn >= 0.4, pass < 0.4.
 
 from __future__ import annotations
 
-import random
 import re
 
 from picowatch.types import Rule
-
-# Determinism guard: seed random to prevent nondeterministic behavior (ADR-006)
-# PicoWatch guarantees same input + same rules = same score, always.
-# If any randomness is accidentally introduced, this ensures reproducibility.
-random.seed(0)
 
 
 class Scorer:
     """Deterministic scoring engine.
 
     Same matches + same rules = same score. Always.
+
+    Determinism guard (ADR-006): PicoWatch guarantees same input + same rules
+    = same score. The Scorer uses no randomness, so no seed is needed. The
+    module-level random.seed(0) from earlier versions has been removed — it was
+    a global side effect that could interfere with callers' own random state.
     """
 
     def __init__(

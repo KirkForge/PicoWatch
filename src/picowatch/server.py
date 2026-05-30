@@ -69,7 +69,7 @@ def _get_client_ip(request: Request) -> str:
     return "unknown"
 
 
-def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
+def create_app(config: PicoWatchConfig | None = None, sink: TelemetrySink | None = None) -> FastAPI:
     """Create and configure the FastAPI application.
 
     Returns the app instance. Call uvicorn separately to run.
@@ -79,7 +79,8 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
     # Initialize guards, telemetry, and rate limiter
     prompt_guard = PromptGuard(config=config)
     output_guard = OutputGuard(config=config)
-    sink = TelemetrySink()
+    if sink is None:
+        sink = TelemetrySink()
     limiter = RateLimiter(max_requests=config.rate_limit, window_seconds=config.rate_limit_window)
 
     # Initialize OTel tracing (ADR-002) — no-op if dependencies missing
@@ -152,11 +153,12 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
             "healthy": h.healthy,
             "version": h.version,
             "rules_loaded": h.rules_loaded,
-            "rules_expected": prompt_guard._engine.rules_expected,
-            "rules_coverage": f"{len(prompt_guard.rules)}/{prompt_guard._engine.rules_expected}",
+            "rules_expected": h.rules_expected,
+            "rules_coverage": f"{h.rules_loaded}/{h.rules_expected}",
             "corpus_hash": h.corpus_hash,
             "corpus_version": h.corpus_version,
             "uptime_seconds": h.uptime_seconds,
+            "load_errors": h.load_errors,
         }
 
     @app.get("/metrics")
@@ -301,7 +303,7 @@ def create_app(config: PicoWatchConfig | None = None) -> FastAPI:
     return app
 
 
-def create_admin_app(config: PicoWatchConfig | None = None) -> FastAPI:
+def create_admin_app(config: PicoWatchConfig | None = None, sink: TelemetrySink | None = None) -> FastAPI:
     """Create a read-only admin app for the admin port (ADR-007).
 
     Exposes health, metrics, and rules on a separate port (default 9091).
@@ -309,7 +311,8 @@ def create_admin_app(config: PicoWatchConfig | None = None) -> FastAPI:
     """
     config = config or PicoWatchConfig.from_env()
     prompt_guard = PromptGuard(config=config)
-    sink = TelemetrySink()
+    if sink is None:
+        sink = TelemetrySink()
 
     app = FastAPI(
         title="PicoWatch Admin",
@@ -331,11 +334,12 @@ def create_admin_app(config: PicoWatchConfig | None = None) -> FastAPI:
             "healthy": h.healthy,
             "version": h.version,
             "rules_loaded": h.rules_loaded,
-            "rules_expected": prompt_guard._engine.rules_expected,
-            "rules_coverage": f"{len(prompt_guard.rules)}/{prompt_guard._engine.rules_expected}",
+            "rules_expected": h.rules_expected,
+            "rules_coverage": f"{h.rules_loaded}/{h.rules_expected}",
             "corpus_hash": h.corpus_hash,
             "corpus_version": h.corpus_version,
             "uptime_seconds": h.uptime_seconds,
+            "load_errors": h.load_errors,
         }
 
     @app.get("/metrics")
@@ -380,10 +384,11 @@ def run_server(config: PicoWatchConfig | None = None, host: str = "0.0.0.0", por
     import uvicorn
 
     config = config or PicoWatchConfig.from_env()
-    app = create_app(config)
+    shared_sink = TelemetrySink()
+    app = create_app(config, sink=shared_sink)
 
-    # Spawn admin app on separate port (ADR-007)
-    admin_app = create_admin_app(config)
+    # Spawn admin app on separate port (ADR-007) — shares telemetry sink
+    admin_app = create_admin_app(config, sink=shared_sink)
     import threading
 
     admin_thread = threading.Thread(

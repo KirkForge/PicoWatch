@@ -14,7 +14,7 @@ import logging
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from picowatch import __version__
@@ -62,28 +62,30 @@ class TelemetrySink:
     def _init_audit_db(self) -> None:
         """Initialize SQLite audit database in WAL mode with integrity checksums (ADR-008)."""
         conn = sqlite3.connect(str(self._config.audit_db_path))
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS audit_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT NOT NULL,
-                event_type TEXT NOT NULL,
-                request_id TEXT,
-                score REAL,
-                verdict TEXT,
-                rules TEXT,
-                details TEXT,
-                checksum TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)
-        """)
-        # Migration: add checksum column if upgrading from older schema
-        with contextlib.suppress(sqlite3.OperationalError):
-            conn.execute("ALTER TABLE audit_log ADD COLUMN checksum TEXT")
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    request_id TEXT,
+                    score REAL,
+                    verdict TEXT,
+                    rules TEXT,
+                    details TEXT,
+                    checksum TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)
+            """)
+            # Migration: add checksum column if upgrading from older schema
+            with contextlib.suppress(sqlite3.OperationalError):
+                conn.execute("ALTER TABLE audit_log ADD COLUMN checksum TEXT")
+            conn.commit()
+        finally:
+            conn.close()
 
     @staticmethod
     def _compute_checksum(
@@ -201,6 +203,7 @@ class TelemetrySink:
         """Write to SQLite audit log with integrity checksum (ADR-008)."""
         timestamp = datetime.now(timezone.utc).isoformat()
         checksum = self._compute_checksum(timestamp, event_type, request_id, score, verdict, rules)
+        conn = None
         try:
             conn = sqlite3.connect(str(self._config.audit_db_path))
             conn.execute(
@@ -221,10 +224,12 @@ class TelemetrySink:
                 ),
             )
             conn.commit()
-            conn.close()
         except sqlite3.Error:
             # Audit write failure should not break scanning
             logger.warning("Failed to write audit log entry")
+        finally:
+            if conn:
+                conn.close()
 
     def verify_audit_integrity(self) -> list[int]:
         """Verify integrity checksums for all audit log rows (ADR-008).
@@ -233,12 +238,12 @@ class TelemetrySink:
         An empty list means all rows are intact.
         """
         invalid_rows: list[int] = []
+        conn = None
         try:
             conn = sqlite3.connect(str(self._config.audit_db_path))
             rows = conn.execute(
                 "SELECT id, timestamp, event_type, request_id, score, verdict, rules, checksum FROM audit_log"
             ).fetchall()
-            conn.close()
             for row in rows:
                 row_id, timestamp, event_type, request_id, score, verdict, rules, stored_checksum = row
                 expected = self._compute_checksum(timestamp, event_type, request_id, score, verdict, rules)
@@ -246,6 +251,9 @@ class TelemetrySink:
                     invalid_rows.append(row_id)
         except sqlite3.Error:
             logger.warning("Failed to verify audit log integrity")
+        finally:
+            if conn:
+                conn.close()
         return invalid_rows
 
     def render_prometheus(self) -> str:
@@ -275,7 +283,14 @@ class TelemetrySink:
 
         return "\n".join(lines) + "\n"
 
-    def health(self, rules_loaded: int, corpus_hash: str, corpus_version: str) -> HealthStatus:
+    def health(
+        self,
+        rules_loaded: int,
+        corpus_hash: str,
+        corpus_version: str,
+        rules_expected: int = 0,
+        load_errors: list[str] | None = None,
+    ) -> HealthStatus:
         """Return health status."""
         return HealthStatus(
             healthy=True,
@@ -284,6 +299,8 @@ class TelemetrySink:
             corpus_hash=corpus_hash,
             corpus_version=corpus_version,
             uptime_seconds=round(time.monotonic() - self._start_time, 2),
+            rules_expected=rules_expected,
+            load_errors=load_errors or [],
         )
 
     def cleanup_audit(self) -> int:
@@ -291,13 +308,16 @@ class TelemetrySink:
         if self._config.audit_retention_days <= 0:
             return 0
 
-        cutoff = datetime.now(timezone.utc) - __import__("datetime").timedelta(days=self._config.audit_retention_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=self._config.audit_retention_days)
+        conn = None
         try:
             conn = sqlite3.connect(str(self._config.audit_db_path))
             cursor = conn.execute("DELETE FROM audit_log WHERE timestamp < ?", (cutoff.isoformat(),))
             deleted = cursor.rowcount
             conn.commit()
-            conn.close()
             return deleted
         except sqlite3.Error:
             return 0
+        finally:
+            if conn:
+                conn.close()

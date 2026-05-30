@@ -105,3 +105,5 @@ class HealthStatus:
     corpus_hash: str
     corpus_version: str
     uptime_seconds: float = 0.0
+    rules_expected: int = 0
+    load_errors: list[str] = field(default_factory=list)

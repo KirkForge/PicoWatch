@@ -34,4 +34,6 @@ def health_check(
         corpus_hash=corpus_hash,
         corpus_version=corpus_version,
         uptime_seconds=uptime_seconds,
+        rules_expected=rules_expected,
+        load_errors=load_errors or [],
     )
