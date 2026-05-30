@@ -2,16 +2,16 @@
 
 ![PicoWatch Banner](docs/banner.png)
 
-**LLM prompt injection detection, output validation, and telemetry.** Pre-1.0 beta — works, but not production-hardened yet.
+**LLM prompt injection detection, output validation, and telemetry.**
 
 [![CI](https://github.com/KirkForge/PicoWatch/actions/workflows/ci.yml/badge.svg)](https://github.com/KirkForge/PicoWatch)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![Rules](https://img.shields.io/badge/rules-91-blue)](rules/)
-[![Tests](https://img.shields.io/badge/tests-243-green)](tests/)
+[![Tests](https://img.shields.io/badge/tests-258%20passing-brightgreen)](tests/)
 [![License: BUSL-1.1](https://img.shields.io/badge/license-BUSL--1.1-orange)](LICENSE)
 [![KirkForge](https://img.shields.io/badge/org-KirkForge-blue)](https://github.com/KirkForge)
 
-PicoWatch is the 3rd product in the [Pico Security Series](https://github.com/KirkForge). It runs **standalone** or integrates into PicoShogun's firewall layer.
+PicoWatch is the 3rd product in the [Pico Security Series](https://github.com/KirkForge). It runs **standalone** or integrates into PicoShogun's firewall layer. 258 tests, thread-safe rate limiting, audit HMAC, `assert_secure()` startup gate, default bind `127.0.0.1`.
 
 ## What It Does
 
@@ -139,4 +139,4 @@ mypy src
 
 ## License
 
-BUSL-1.1. See [LICENSE](LICENSE).
+Business Source License 1.1 (BUSL-1.1) — source-available; production use allowed except for competitive offerings. After 3 years, converts to Apache-2.0. See [LICENSE](LICENSE), [LICENSE-SUMMARY.md](LICENSE-SUMMARY.md), and [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
