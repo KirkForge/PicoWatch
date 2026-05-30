@@ -1,28 +1,3 @@
-# === Secrets & Credentials ===
-*.pem
-*.key
-*_token*
-*.env
-.env.*
-.envrc
-credentials*
-secrets*
-**/secrets/**
-**/.github_pat*
-
-# === Python ===
-__pycache__/
-*.py[cod]
-*.pyo
-*.egg-info/
-*.egg
-dist/
-build/
-*.whl
-.eggs/
-*.so
-venv/
-.venv/
 env/
 .cache/
 
@@ -66,3 +41,9 @@ credentials.json
 *.db-shm
 *.db-wal
 *.sqlite
+.venv
+
+# === Build artifacts ===
+src/*.egg-info/
+**/__pycache__/
+*.pyc

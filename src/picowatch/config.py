@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-DEFAULT_RULES_DIR = Path(__file__).parent.parent.parent / "rules"
+DEFAULT_RULES_DIR = Path(__file__).parent / "rules"
 DEFAULT_THRESHOLD_BLOCK = 0.7
 DEFAULT_THRESHOLD_WARN = 0.4
 DEFAULT_MAX_PROMPT_SIZE = 1_000_000  # 1MB
