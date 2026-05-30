@@ -7,7 +7,8 @@ name = "picowatch"
 version = "0.7.0"
 description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability"
 readme = "README.md"
-license = {text = "KirkForge Personal Use License"}
+license = "BUSL-1.1"
+license-files = ["LICENSE*", "COMMERCIAL-LICENSE.md"]
 requires-python = ">=3.10"
 authors = [{name = "Henrik Kirk", email = "kirk@kirkforge.dev"}]
 maintainers = [{name = "KirkForge", email = "kirk@kirkforge.dev"}]
@@ -25,6 +26,7 @@ keywords = [
     "supply-chain",
 ]
 classifiers = [
+    "License :: Other/Proprietary License",
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
