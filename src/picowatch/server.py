@@ -76,6 +76,11 @@ def create_app(config: PicoWatchConfig | None = None, sink: TelemetrySink | None
     """
     config = config or PicoWatchConfig.from_env()
 
+    # Enforce secure configuration in production
+    config.assert_secure()  # no-op in test mode (no api_key)
+    if config.api_key:
+        logger.info("API key configured — write endpoints require authentication")
+
     # Initialize guards, telemetry, and rate limiter
     prompt_guard = PromptGuard(config=config)
     output_guard = OutputGuard(config=config)
@@ -310,6 +315,11 @@ def create_admin_app(config: PicoWatchConfig | None = None, sink: TelemetrySink 
     No auth required. No POST endpoints.
     """
     config = config or PicoWatchConfig.from_env()
+
+    # Enforce secure configuration in production
+    config.assert_secure()  # no-op in test mode (no api_key)
+    if config.api_key:
+        logger.info("API key configured — write endpoints require authentication")
     prompt_guard = PromptGuard(config=config)
     if sink is None:
         sink = TelemetrySink()
@@ -384,6 +394,11 @@ def run_server(config: PicoWatchConfig | None = None, host: str = "0.0.0.0", por
     import uvicorn
 
     config = config or PicoWatchConfig.from_env()
+
+    # Enforce secure configuration in production
+    config.assert_secure()  # no-op in test mode (no api_key)
+    if config.api_key:
+        logger.info("API key configured — write endpoints require authentication")
     shared_sink = TelemetrySink()
     app = create_app(config, sink=shared_sink)
 

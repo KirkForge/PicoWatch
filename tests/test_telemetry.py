@@ -155,9 +155,10 @@ class TestAuditIntegrity:
         assert rows[0][0] is not None
         assert len(rows[0][0]) == 32  # truncated HMAC-SHA256
 
-    def test_verify_audit_integrity(self, tmp_path) -> None:
+    def test_verify_audit_integrity(self, tmp_path, monkeypatch) -> None:
         """verify_audit_integrity returns empty list for intact rows."""
         db_path = tmp_path / "test_verify.db"
+        monkeypatch.setenv("PICOWATCH_AUDIT_HMAC_KEY", "test-key-that-is-at-least-32-characters-long!")
         config = TelemetryConfig(audit_db_path=db_path)
         sink = TelemetrySink(config=config)
 
@@ -174,9 +175,10 @@ class TestAuditIntegrity:
         invalid = sink.verify_audit_integrity()
         assert invalid == []
 
-    def test_verify_detects_tampering(self, tmp_path) -> None:
+    def test_verify_detects_tampering(self, tmp_path, monkeypatch) -> None:
         """verify_audit_integrity detects tampered rows."""
         db_path = tmp_path / "test_tamper.db"
+        monkeypatch.setenv("PICOWATCH_AUDIT_HMAC_KEY", "test-key-that-is-at-least-32-characters-long!")
         config = TelemetryConfig(audit_db_path=db_path)
         sink = TelemetrySink(config=config)
 

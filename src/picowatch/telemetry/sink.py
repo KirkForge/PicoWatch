@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import sqlite3
 import time
 from dataclasses import dataclass, field
@@ -88,16 +89,33 @@ class TelemetrySink:
             conn.close()
 
     @staticmethod
+    def _audit_key() -> bytes:
+        """Derive the audit HMAC key from PICOWATCH_AUDIT_HMAC_KEY env var.
+
+        Falls back to a per-process random key if not set, logging a warning.
+        In production, set PICOWATCH_AUDIT_HMAC_KEY to a stable secret (≥32 chars)
+        so audit logs can be verified across restarts.
+        """
+        key = os.environ.get("PICOWATCH_AUDIT_HMAC_KEY")
+        if key and len(key) >= 32:
+            return key.encode("utf-8")
+        if key:
+            logger.warning("PICOWATCH_AUDIT_HMAC_KEY is set but shorter than 32 chars — ignoring")
+        logger.warning("PICOWATCH_AUDIT_HMAC_KEY not set — using random per-process key; "
+                       "audit checksums will NOT survive restarts")
+        return os.urandom(32)
+
     def _compute_checksum(
-        timestamp: str, event_type: str, request_id: str | None, score: float, verdict: str, rules: str
+        self, timestamp: str, event_type: str, request_id: str | None, score: float, verdict: str, rules: str
     ) -> str:
         """Compute HMAC-SHA256 checksum for audit log row integrity (ADR-008).
 
-        Uses a fixed key derived from the PicoWatch package identity.
-        This is for tamper detection, not cryptographic secrecy.
+        Uses PICOWATCH_AUDIT_HMAC_KEY env var (≥32 chars) for deterministic
+        signing. Falls back to a random per-process key with a warning —
+        checksums are for tamper-detection, not cryptographic secrecy.
         """
         msg = f"{timestamp}|{event_type}|{request_id or ''}|{score}|{verdict}|{rules}"
-        return hmac.new(b"picowatch-audit-integrity", msg.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
+        return hmac.new(self._audit_key(), msg.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
 
     def record_prompt_scan(self, result: PromptScanResult, request_id: str | None = None) -> None:
         """Record a prompt scan result."""

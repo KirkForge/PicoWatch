@@ -16,7 +16,7 @@ DEFAULT_THRESHOLD_BLOCK = 0.7
 DEFAULT_THRESHOLD_WARN = 0.4
 DEFAULT_MAX_PROMPT_SIZE = 1_000_000  # 1MB
 DEFAULT_AUDIT_RETENTION_DAYS = 30
-DEFAULT_HOST = "0.0.0.0"
+DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8766
 DEFAULT_ADMIN_PORT = 9091
 DEFAULT_CORPUS_VERSION = "2026.05.1"
@@ -93,6 +93,55 @@ class PicoWatchConfig:
     # Misc
     verify_determinism: bool = False
     verbose: bool = False
+
+    def assert_secure(self) -> None:
+        """Enforce secure configuration in production.
+
+        Refuses to boot with insecure defaults. Override with
+        PICOWATCH_SKIP_SECURE_ASSERT=1 (NOT recommended).
+        """
+        import logging
+        import sys
+        _logger = logging.getLogger("picowatch.config")
+
+        if os.environ.get("PICOWATCH_SKIP_SECURE_ASSERT") == "1":
+            _logger.warning("SECURITY ASSERT SKIPPED: PICOWATCH_SKIP_SECURE_ASSERT=1 is set. "
+                          "This bypasses startup security checks.")
+            return
+
+        issues = self.validate_secure()
+        critical = [i for i in issues if i.startswith("SECURITY:")]
+        config_warnings = [i for i in issues if i.startswith("CONFIG:")]
+
+        for w in config_warnings:
+            _logger.warning(w)
+
+        if critical:
+            for issue in critical:
+                _logger.critical(issue)
+            _logger.critical(
+                "FATAL: %d critical security issue(s) detected. "
+                "Refusing to start. Override with PICOWATCH_SKIP_SECURE_ASSERT=1 (NOT recommended).",
+                len(critical),
+            )
+            sys.exit(1)
+
+    def validate_secure(self) -> list[str]:
+        """Validate configuration and return list of security/config issues."""
+        issues = []
+
+        if self.api_key and len(self.api_key) < 32:
+            issues.append("SECURITY: API key is shorter than 32 characters — use a strong random key")
+
+        if self.host == "0.0.0.0" and self.api_key:
+            issues.append("CONFIG: Binding to 0.0.0.0 with API key set — consider restricting to 127.0.0.1 "
+                          "or using a reverse proxy")
+
+        if not self.api_key:
+            issues.append("CONFIG: No PICOWATCH_API_KEY set — write endpoints are unprotected. "
+                          "Set PICOWATCH_API_KEY before production deployment")
+
+        return issues
 
     @classmethod
     def from_env(cls, config_path: Path | None = None) -> PicoWatchConfig:
@@ -212,3 +261,5 @@ def check_config_permissions() -> list[str]:
                 pass
 
     return warnings
+
+
