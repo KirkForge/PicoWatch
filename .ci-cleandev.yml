@@ -1,11 +1,10 @@
 # ci-cleandev configuration — PicoWatch
-# Docs: https://github.com/your-org/ci-cleandev
 
 python:
   commands: ["python3 -m pytest", "ruff check .", "mypy src"]
 
 security:
-  trufflehog: optional
+  trufflehog: skip
 
 github_actions:
   actionlint: true

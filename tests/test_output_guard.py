@@ -93,7 +93,7 @@ class TestOutputGuard:
         """Database connection string in output is detected."""
         config = PicoWatchConfig(rules_dir=RULES_DIR)
         guard = OutputGuard(config=config)
-        result = guard.validate("postgres://user:pass@db.example.com:5432/prod")
+        result = guard.validate("postgres://user:pass@127.0.0.1:5432/testdb")
         assert "out_exfil_database_url" in result.violations
 
     def test_log4shell_detected(self) -> None:
@@ -206,7 +206,7 @@ class TestOutputGuard:
         """Database connection string is redacted."""
         config = PicoWatchConfig(rules_dir=RULES_DIR)
         guard = OutputGuard(config=config)
-        result = guard.validate("postgres://user:pass@db.example.com:5432/prod")
+        result = guard.validate("postgres://user:pass@127.0.0.1:5432/testdb")
         assert "out_exfil_database_url" in result.violations
         assert result.redacted is not None
         assert "[DB-URL-REDACTED]" in result.redacted
