@@ -141,6 +141,10 @@ class PicoWatchConfig:
                 "or using a reverse proxy"
             )
 
+        if self.host == "0.0.0.0" and not self.api_key:
+            issues.append("SECURITY: Binding to 0.0.0.0 without API key — "
+                          "write endpoints are publicly accessible. Set PICOWATCH_API_KEY or bind to 127.0.0.1")
+
         if not self.api_key:
             issues.append(
                 "CONFIG: No PICOWATCH_API_KEY set — write endpoints are unprotected. "
@@ -188,7 +192,7 @@ class PicoWatchConfig:
         rules_dir_str = os.environ.get("PICOWATCH_RULES_DIR") or picowatch_conf.get("rules_dir")
         schema_dir_str = os.environ.get("PICOWATCH_SCHEMA_DIR") or picowatch_conf.get("schema_dir")
 
-        return cls(
+        config = cls(
             rules_dir=Path(rules_dir_str) if rules_dir_str else DEFAULT_RULES_DIR,
             threshold_block=_env_or_file(
                 "threshold_block",
@@ -220,6 +224,51 @@ class PicoWatchConfig:
             corpus_version=os.environ.get("PICOWATCH_CORPUS_VERSION")
             or picowatch_conf.get("corpus_version", DEFAULT_CORPUS_VERSION),
         )
+
+        # Validate environment variable ranges
+        _validate_env_ranges(config)
+
+        return config
+
+
+def _validate_env_ranges(config: PicoWatchConfig) -> None:
+    """Validate that environment variable values are within acceptable ranges.
+
+    Logs warnings for out-of-range values but does not raise — production
+    should not crash on misconfiguration, only warn.
+    """
+    import logging as _logging
+    _logger = _logging.getLogger("picowatch.config")
+
+    if not (0.0 <= config.threshold_block <= 1.0):
+        _logger.warning("PICOWATCH_THRESHOLD_BLOCK=%s out of range [0,1]; clamped", config.threshold_block)
+        config.threshold_block = max(0.0, min(1.0, config.threshold_block))
+
+    if not (0.0 <= config.threshold_warn <= config.threshold_block):
+        _logger.warning("PICOWATCH_THRESHOLD_WARN=%s invalid (must be <= threshold_block=%s)",
+                        config.threshold_warn, config.threshold_block)
+        config.threshold_warn = min(config.threshold_warn, config.threshold_block)
+
+    if config.port < 1 or config.port > 65535:
+        _logger.warning("PICOWATCH_PORT=%s out of range [1,65535]; using default %d", config.port, DEFAULT_PORT)
+        config.port = DEFAULT_PORT
+
+    if config.admin_port < 1 or config.admin_port > 65535:
+        _logger.warning("PICOWATCH_ADMIN_PORT=%s out of range [1,65535]; using default %d",
+                        config.admin_port, DEFAULT_ADMIN_PORT)
+        config.admin_port = DEFAULT_ADMIN_PORT
+
+    if config.rate_limit < 1:
+        _logger.warning("PICOWATCH_RATE_LIMIT=%s must be >=1; using default %d", config.rate_limit, DEFAULT_RATE_LIMIT)
+        config.rate_limit = DEFAULT_RATE_LIMIT
+
+    if config.audit_retention_days < 0:
+        _logger.warning("PICOWATCH_AUDIT_RETENTION_DAYS=%s must be >=0; using default %d",
+                        config.audit_retention_days, DEFAULT_AUDIT_RETENTION_DAYS)
+        config.audit_retention_days = DEFAULT_AUDIT_RETENTION_DAYS
+
+    if config.api_key and len(config.api_key) < 32:
+        _logger.warning("PICOWATCH_API_KEY is shorter than 32 characters — recommend a strong random key")
 
 
 def check_config_permissions() -> list[str]:

@@ -3,8 +3,8 @@
 - id: out_exfil_env_var
   category: exfiltration
   weight: 0.85
-  pattern: "(?:AWS_|GCP_|AZURE_|DATABASE_|SECRET_|API_|TOKEN_|PASSWORD_|PRIVATE_)[A-Z_]*\\s*=\\s*[^\\s]+"
-  description: "Environment variable exfiltration — key=value patterns"
+  pattern: "(?:AWS_(?:SECRET|ACCESS|KEY|SESSION)|GCP_(?:KEY|SECRET|TOKEN|CREDENTIALS)|AZURE_(?:CLIENT_SECRET|SUBSCRIPTION|TENANT|KEY)|DATABASE_(?:URL|PASSWORD|URI)|SECRET_?(?:KEY|TOKEN|VALUE)?|API_(?:KEY|SECRET|TOKEN)|TOKEN_?(?:SECRET|KEY)?|PASSWORD|PRIVATE_KEY)[A-Z_]*\\s*=\\s*[^\\s]+"
+  description: "Environment variable exfiltration — sensitive key=value patterns (tightened)"
   normalization: [unicode, whitespace]
 
 - id: out_exfil_internal_url

@@ -36,6 +36,9 @@ class OutputGuard:
         self._rules_dir = rules_dir or self._config.rules_dir / "output_policy"
         self._normalizer = Normalizer()
         self._engine = RuleEngine(rules_dir=self._rules_dir)
+        self._loaded_schemas: dict[str, dict[str, Any]] = {}
+        if self._config.schema_dir and self._config.schema_dir.exists():
+            self._load_schemas(self._config.schema_dir)
 
     @property
     def rules(self) -> list[Rule]:
@@ -47,10 +50,28 @@ class OutputGuard:
         """SHA-256 hash of all rule files."""
         return self._engine.corpus_hash
 
+    def _load_schemas(self, schema_dir: Path) -> None:
+        """Load JSON schemas from schema_dir for use in validation.
+
+        Schema files must be named <name>.json and contain a valid
+        JSON Schema object. They are keyed by filename stem.
+        """
+        for schema_file in sorted(schema_dir.glob("*.json")):
+            try:
+                data = json.loads(schema_file.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    self._loaded_schemas[schema_file.stem] = data
+            except (json.JSONDecodeError, OSError) as exc:
+                import logging
+                logging.getLogger("picowatch.output_guard").warning(
+                    "Failed to load schema %s: %s", schema_file.name, exc
+                )
+
     def validate(
         self,
         output: str,
         schema: dict[str, Any] | None = None,
+        schema_name: str | None = None,
         prompt_result: PromptScanResult | None = None,
     ) -> ValidationResult:
         """Validate an LLM output.
@@ -58,6 +79,7 @@ class OutputGuard:
         Args:
             output: The LLM output text to validate.
             schema: Optional JSON Schema for structural validation.
+            schema_name: Name of a pre-loaded schema (from schema_dir config).
             prompt_result: Optional L5 scan result — flagged prompts
                 get stricter validation.
 
@@ -69,9 +91,12 @@ class OutputGuard:
         total_score = 0.0
         redacted = output
 
-        # Step 1: Schema validation (if schema provided)
-        if schema is not None:
-            schema_violations = self._check_schema(output, schema)
+        # Step 1: Schema validation (if schema provided or named)
+        effective_schema = schema
+        if effective_schema is None and schema_name and schema_name in self._loaded_schemas:
+            effective_schema = self._loaded_schemas[schema_name]
+        if effective_schema is not None:
+            schema_violations = self._check_schema(output, effective_schema)
             violations.extend(schema_violations)
 
         # Step 2: Content policy (output rules)
@@ -84,27 +109,39 @@ class OutputGuard:
 
         # Step 3: PII detection and redaction
         redacted, pii_violations = self._detect_pii(output)
-        violations.extend(pii_violations)
+        for v in pii_violations:
+            if v not in violations:
+                violations.append(v)
 
         # Step 4: Feedback loop — if prompt was flagged, lower the threshold
         if prompt_result and prompt_result.score >= 0.4:
             # Flagged prompt: any output violation is more serious
             total_score = min(1.0, total_score * 1.3)
 
+        # Deduplicate violations (rule engine and PII detector can overlap)
+        seen: set[str] = set()
+        unique_violations: list[str] = []
+        for v in violations:
+            if v not in seen:
+                seen.add(v)
+                unique_violations.append(v)
+
         # Final score
         score = round(total_score, 6)
-        valid = score < self._config.threshold_block and len(violations) == 0
+        valid = score < self._config.threshold_block and len(unique_violations) == 0
 
         duration_ms = round((time.perf_counter() - start) * 1000, 3)
 
         return ValidationResult(
             valid=valid,
             score=score,
-            violations=violations,
+            violations=unique_violations,
             corpus_hash=self.corpus_hash,
             corpus_version=self._config.corpus_version,
             duration_ms=duration_ms,
             redacted=redacted if redacted != output else None,
+            threshold_block=self._config.threshold_block,
+            threshold_warn=self._config.threshold_warn,
         )
 
     def _check_schema(self, output: str, schema: dict[str, Any]) -> list[str]:
@@ -126,6 +163,10 @@ class OutputGuard:
             (schema_type == "object" and not isinstance(data, dict))
             or (schema_type == "array" and not isinstance(data, list))
             or (schema_type == "string" and not isinstance(data, str))
+            or (schema_type == "number" and not isinstance(data, (int, float)))
+            or (schema_type == "integer" and not isinstance(data, int))
+            or (schema_type == "boolean" and not isinstance(data, bool))
+            or (schema_type == "null" and data is not None)
         ):
             violations.append("out_fmt_type_mismatch")
 
@@ -211,14 +252,14 @@ class OutputGuard:
             violations.append("out_pii_ssn")
             redacted = ssn_pattern.sub("[SSN-REDACTED]", redacted)
 
-        # Passport/national ID
-        passport_pattern = re.compile(r"\b[A-Z]{1,2}\d{6,9}\b")
+        # Passport/national ID (tightened: require 2+ letters or digit count 7-9 to reduce false positives)
+        passport_pattern = re.compile(r"\b[A-Z]{2}\d{7,9}\b|\b[A-Z]\d{8,9}\b")
         if passport_pattern.search(redacted):
             violations.append("out_pii_passport")
             redacted = passport_pattern.sub("[PASSPORT-REDACTED]", redacted)
 
-        # Cryptocurrency wallet address (ETH/BTC)
-        crypto_pattern = re.compile(r"(?:0x)?[0-9a-fA-F]{40}|[13][0-9a-zA-Z]{25,34}|bc1[qQ][0-9a-zA-Z]{39,59}")
+        # Cryptocurrency wallet address (tightened: 0x prefix required for ETH, specific BTC patterns)
+        crypto_pattern = re.compile(r"0x[0-9a-fA-F]{40}|[13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[qQ][0-9a-zA-Z]{39,59}")
         if crypto_pattern.search(redacted):
             violations.append("out_pii_crypto_wallet")
             redacted = crypto_pattern.sub("[CRYPTO-WALLET-REDACTED]", redacted)
@@ -244,9 +285,13 @@ class OutputGuard:
             violations.append("out_exfil_docker_secret")
             redacted = docker_secret_pattern.sub("[K8S-SECRET-REDACTED]", redacted)
 
-        # Environment variable exfiltration
+        # Environment variable exfiltration (tightened: require sensitive-value indicators)
         env_var_pattern = re.compile(
-            r"(?:AWS_|GCP_|AZURE_|DATABASE_|SECRET_|API_|TOKEN_|PASSWORD_|PRIVATE_)[A-Z_]*\s*=\s*[^\s]+"
+            r"(?:AWS_(?:SECRET|ACCESS|KEY|SESSION)|GCP_(?:KEY|SECRET|TOKEN|CREDENTIALS)"
+            r"|AZURE_(?:CLIENT_SECRET|SUBSCRIPTION|TENANT|KEY)|DATABASE_(?:URL|PASSWORD|URI)"
+            r"|SECRET_?(?:KEY|TOKEN|VALUE)?|API_(?:KEY|SECRET|TOKEN)"
+            r"|TOKEN_?(?:SECRET|KEY)?|PASSWORD|PRIVATE_KEY)"
+            r"[A-Z_]*\s*=\s*[^\s]+"
         )
         if env_var_pattern.search(redacted):
             violations.append("out_exfil_env_var")
@@ -258,8 +303,11 @@ class OutputGuard:
             violations.append("out_pii_email")
             redacted = email_pattern.sub("[EMAIL-REDACTED]", redacted)
 
-        # Phone pattern (US)
-        phone_pattern = re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")
+        # Phone pattern (US + international)
+        phone_pattern = re.compile(
+            r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
+            r"|\b\+?(?:\d{1,3}[-.\s]?)?\(?\d{1,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b"
+        )
         if phone_pattern.search(redacted):
             violations.append("out_pii_phone")
             redacted = phone_pattern.sub("[PHONE-REDACTED]", redacted)

@@ -2,16 +2,16 @@
 
 - id: inj_multiturn_game
   category: multi_turn_trap
-  weight: 0.6
-  pattern: "let'?s\\s+play\\s+a\\s+game|for\\s+(?:research|academic|educational)\\s+purposes"
-  description: "Multi-turn trap — game framing or research excuses"
+  weight: 0.55
+  pattern: "let'?s\\s+play\\s+a\\s+game\\s+(?:where|that|in\\s+which|of)|for\\s+(?:research|academic|educational)\\s+purposes\\b"
+  description: "Multi-turn trap — game framing with injection setup or research excuses"
   normalization: [unicode, whitespace]
 
 - id: inj_multiturn_bypass
   category: multi_turn_trap
   weight: 0.55
-  pattern: "(?:hypothetically|theoretically|imagine\\s+that)\\s*,\\s*(?:what|how|if)"
-  description: "Multi-turn trap — hypothetical bypass framing"
+  pattern: "(?:hypothetically|theoretically|imagine\\s+that)\\s*,\\s*(?:what\\s+would|how\\s+(?:could|would|can)|if\\s+you)"
+  description: "Multi-turn trap — hypothetical bypass with action framing"
   normalization: [unicode, whitespace]
 
 - id: inj_multiturn_authority

@@ -187,7 +187,7 @@ def main(argv: list[str] | None = None) -> None:
 
     # serve
     se = sub.add_parser("serve", help="Start HTTP daemon (FastAPI + uvicorn)")
-    se.add_argument("--host", default="0.0.0.0", help="Bind host")
+    se.add_argument("--host", default="127.0.0.1", help="Bind host")
     se.add_argument("--port", "-p", type=int, default=8766, help="Bind port")
 
     # rules

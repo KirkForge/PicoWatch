@@ -88,23 +88,36 @@ class TelemetrySink:
         finally:
             conn.close()
 
-    @staticmethod
-    def _audit_key() -> bytes:
+    _cached_audit_key: bytes | None = None
+
+    @classmethod
+    def _audit_key(cls) -> bytes:
         """Derive the audit HMAC key from PICOWATCH_AUDIT_HMAC_KEY env var.
 
         Falls back to a per-process random key if not set, logging a warning.
         In production, set PICOWATCH_AUDIT_HMAC_KEY to a stable secret (≥32 chars)
         so audit logs can be verified across restarts.
+
+        The per-process key is cached after first generation so all calls
+        within the same process use the same key.
         """
+        if cls._cached_audit_key is not None:
+            return cls._cached_audit_key
         key = os.environ.get("PICOWATCH_AUDIT_HMAC_KEY")
         if key and len(key) >= 32:
-            return key.encode("utf-8")
+            cls._cached_audit_key = key.encode("utf-8")
+            return cls._cached_audit_key
+        if key and len(key) >= 16:
+            logger.warning("PICOWATCH_AUDIT_HMAC_KEY is shorter than 32 chars — "
+                           "cryptographic strength reduced; recommend ≥32 chars")
+            cls._cached_audit_key = key.encode("utf-8")
+            return cls._cached_audit_key
         if key:
-            logger.warning("PICOWATCH_AUDIT_HMAC_KEY is set but shorter than 32 chars — ignoring")
-        logger.warning(
-            "PICOWATCH_AUDIT_HMAC_KEY not set — using random per-process key; audit checksums will NOT survive restarts"
-        )
-        return os.urandom(32)
+            logger.warning("PICOWATCH_AUDIT_HMAC_KEY is set but shorter than 16 chars — ignoring")
+        cls._cached_audit_key = os.urandom(32)
+        logger.warning("PICOWATCH_AUDIT_HMAC_KEY not set — using random per-process key; "
+                       "audit checksums will NOT survive restarts. Set PICOWATCH_AUDIT_HMAC_KEY for persistent verification.")
+        return cls._cached_audit_key
 
     def _compute_checksum(
         self, timestamp: str, event_type: str, request_id: str | None, score: float, verdict: str, rules: str
@@ -276,7 +289,11 @@ class TelemetrySink:
         return invalid_rows
 
     def render_prometheus(self) -> str:
-        """Render Prometheus metrics in text format (zero-dep)."""
+        """Render Prometheus metrics in text format (zero-dep).
+
+        Merges manual counters with histogram data collected by
+        PrometheusMetrics.observe_histogram().
+        """
         lines: list[str] = []
 
         # Counters
@@ -299,6 +316,11 @@ class TelemetrySink:
         lines.append("# HELP picowatch_scan_duration_ms_sum Cumulative scan duration in ms")
         lines.append("# TYPE picowatch_scan_duration_ms_sum counter")
         lines.append(f"picowatch_scan_duration_ms_sum {self._metrics['picowatch_scan_duration_ms_sum']}")
+
+        # Histograms from PrometheusMetrics
+        if self._prometheus._histograms:
+            lines.append("")
+            lines.append(self._prometheus.render())
 
         return "\n".join(lines) + "\n"
 

@@ -1,7 +1,7 @@
 """Scoring engine: weighted scoring for rule matches.
 
 Final score = max(individual_rule_score, weighted_average).
-Thresholds: block >= 0.7, warn >= 0.4, pass < 0.4.
+Thresholds are configurable via Scorer.__init__ (defaults: block >= 0.7, warn >= 0.4).
 """
 
 from __future__ import annotations

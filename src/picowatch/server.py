@@ -13,6 +13,7 @@ Rate limiting: Per-IP sliding window (ADR-008).
 
 from __future__ import annotations
 
+import os
 import logging
 import secrets
 import uuid
@@ -63,10 +64,16 @@ class OutputScanRequest(BaseModel):
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract client IP from request, respecting X-Forwarded-For."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Extract client IP from request.
+
+    Uses X-Forwarded-For only when PICOWATCH_TRUST_PROXY=1 is set.
+    Without that flag, always uses the direct client IP to prevent
+    spoofing via X-Forwarded-For header injection.
+    """
+    if os.environ.get("PICOWATCH_TRUST_PROXY") == "1":
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
     if request.client:
         return request.client.host
     return "unknown"
@@ -88,7 +95,11 @@ def create_app(config: PicoWatchConfig | None = None, sink: TelemetrySink | None
     prompt_guard = PromptGuard(config=config)
     output_guard = OutputGuard(config=config)
     if sink is None:
-        sink = TelemetrySink()
+        from picowatch.telemetry.sink import TelemetryConfig
+        sink = TelemetrySink(config=TelemetryConfig(
+            audit_retention_days=config.audit_retention_days,
+            otel_endpoint=config.otel_endpoint,
+        ))
     limiter = RateLimiter(max_requests=config.rate_limit, window_seconds=config.rate_limit_window)
 
     # Initialize OTel tracing (ADR-002) — no-op if dependencies missing
@@ -311,11 +322,14 @@ def create_app(config: PicoWatchConfig | None = None, sink: TelemetrySink | None
     return app
 
 
-def create_admin_app(config: PicoWatchConfig | None = None, sink: TelemetrySink | None = None) -> FastAPI:
+def create_admin_app(config: PicoWatchConfig | None = None, sink: TelemetrySink | None = None,
+                          prompt_guard: PromptGuard | None = None) -> FastAPI:
     """Create a read-only admin app for the admin port (ADR-007).
 
     Exposes health, metrics, and rules on a separate port (default 9091).
     No auth required. No POST endpoints.
+
+    Accepts an optional shared PromptGuard to avoid double-loading rules.
     """
     config = config or PicoWatchConfig.from_env()
 
@@ -323,7 +337,8 @@ def create_admin_app(config: PicoWatchConfig | None = None, sink: TelemetrySink 
     config.assert_secure()  # no-op in test mode (no api_key)
     if config.api_key:
         logger.info("API key configured — write endpoints require authentication")
-    prompt_guard = PromptGuard(config=config)
+    if prompt_guard is None:
+        prompt_guard = PromptGuard(config=config)
     if sink is None:
         sink = TelemetrySink()
 
@@ -389,7 +404,7 @@ def create_admin_app(config: PicoWatchConfig | None = None, sink: TelemetrySink 
     return app
 
 
-def run_server(config: PicoWatchConfig | None = None, host: str = "0.0.0.0", port: int = 8766) -> None:
+def run_server(config: PicoWatchConfig | None = None, host: str = "127.0.0.1", port: int = 8766) -> None:
     """Run the PicoWatch HTTP server with admin port (ADR-007).
 
     Main port serves API endpoints. Admin port serves health/metrics/rules.
@@ -405,8 +420,11 @@ def run_server(config: PicoWatchConfig | None = None, host: str = "0.0.0.0", por
     shared_sink = TelemetrySink()
     app = create_app(config, sink=shared_sink)
 
-    # Spawn admin app on separate port (ADR-007) — shares telemetry sink
-    admin_app = create_admin_app(config, sink=shared_sink)
+    # Reuse the same PromptGuard from the main app (avoid double-loading rules)
+    shared_prompt_guard = PromptGuard(config=config)
+
+    # Spawn admin app on separate port (ADR-007) — shares sink and prompt guard
+    admin_app = create_admin_app(config, sink=shared_sink, prompt_guard=shared_prompt_guard)
     import threading
 
     admin_thread = threading.Thread(
