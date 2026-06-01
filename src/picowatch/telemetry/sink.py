@@ -101,8 +101,9 @@ class TelemetrySink:
             return key.encode("utf-8")
         if key:
             logger.warning("PICOWATCH_AUDIT_HMAC_KEY is set but shorter than 32 chars — ignoring")
-        logger.warning("PICOWATCH_AUDIT_HMAC_KEY not set — using random per-process key; "
-                       "audit checksums will NOT survive restarts")
+        logger.warning(
+            "PICOWATCH_AUDIT_HMAC_KEY not set — using random per-process key; audit checksums will NOT survive restarts"
+        )
         return os.urandom(32)
 
     def _compute_checksum(

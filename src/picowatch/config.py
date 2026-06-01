@@ -102,11 +102,13 @@ class PicoWatchConfig:
         """
         import logging
         import sys
+
         _logger = logging.getLogger("picowatch.config")
 
         if os.environ.get("PICOWATCH_SKIP_SECURE_ASSERT") == "1":
-            _logger.warning("SECURITY ASSERT SKIPPED: PICOWATCH_SKIP_SECURE_ASSERT=1 is set. "
-                          "This bypasses startup security checks.")
+            _logger.warning(
+                "SECURITY ASSERT SKIPPED: PICOWATCH_SKIP_SECURE_ASSERT=1 is set. This bypasses startup security checks."
+            )
             return
 
         issues = self.validate_secure()
@@ -134,12 +136,16 @@ class PicoWatchConfig:
             issues.append("SECURITY: API key is shorter than 32 characters — use a strong random key")
 
         if self.host == "0.0.0.0" and self.api_key:
-            issues.append("CONFIG: Binding to 0.0.0.0 with API key set — consider restricting to 127.0.0.1 "
-                          "or using a reverse proxy")
+            issues.append(
+                "CONFIG: Binding to 0.0.0.0 with API key set — consider restricting to 127.0.0.1 "
+                "or using a reverse proxy"
+            )
 
         if not self.api_key:
-            issues.append("CONFIG: No PICOWATCH_API_KEY set — write endpoints are unprotected. "
-                          "Set PICOWATCH_API_KEY before production deployment")
+            issues.append(
+                "CONFIG: No PICOWATCH_API_KEY set — write endpoints are unprotected. "
+                "Set PICOWATCH_API_KEY before production deployment"
+            )
 
         return issues
 
@@ -261,5 +267,3 @@ def check_config_permissions() -> list[str]:
                 pass
 
     return warnings
-
-

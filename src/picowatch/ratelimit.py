@@ -63,10 +63,7 @@ class RateLimiter:
     def _evict_stale(self, now: float) -> None:
         """Remove clients with no recent activity to bound memory usage."""
         cutoff = now - self.window_seconds * 2  # Grace period beyond window
-        stale = [
-            ip for ip, entry in self._clients.items()
-            if not entry.timestamps or entry.timestamps[-1] < cutoff
-        ]
+        stale = [ip for ip, entry in self._clients.items() if not entry.timestamps or entry.timestamps[-1] < cutoff]
         for ip in stale:
             del self._clients[ip]
 

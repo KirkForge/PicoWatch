@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 # ─── Request/Response Models ──────────────────────────────────────────────
 
+
 class PromptScanRequest(BaseModel):
     """Request body for POST /v1/scan/prompt."""
 

@@ -22,7 +22,7 @@ def config_no_auth() -> PicoWatchConfig:
 @pytest.fixture
 def config_with_auth() -> PicoWatchConfig:
     """Config with API key required."""
-    return PicoWatchConfig(api_key="test-secret-key-12345")
+    return PicoWatchConfig(api_key="test-secret-key-that-is-at-least-32-chars-long")
 
 
 @pytest.fixture

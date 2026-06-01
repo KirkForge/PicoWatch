@@ -19,7 +19,7 @@ from picowatch.server import create_admin_app, create_app
 def app_config() -> PicoWatchConfig:
     """Standard config for integration tests."""
     return PicoWatchConfig(
-        api_key="integration-test-key",
+        api_key="integration-test-key-that-is-at-least-32-ch",
         rate_limit=100,
         rate_limit_window=60,
     )
