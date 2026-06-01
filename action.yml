@@ -1,0 +1,176 @@
+name: PicoWatch — LLM Defense
+description: LLM prompt injection detection, output validation, and telemetry for CI pipelines
+author: KirkForge
+branding:
+  icon: eye
+  color: purple
+
+inputs:
+  mode:
+    description: Scan mode — scan-prompt (check a prompt), validate-output (check LLM output), or health
+    required: false
+    default: 'scan-prompt'
+  text:
+    description: Prompt text to scan (for scan-prompt mode)
+    required: false
+    default: ''
+  prompt-file:
+    description: File containing prompt text to scan (for scan-prompt mode)
+    required: false
+    default: ''
+  schema:
+    description: JSON schema file for output validation (for validate-output mode)
+    required: false
+    default: ''
+  output-file:
+    description: LLM output file to validate (for validate-output mode)
+    required: false
+    default: ''
+  format:
+    description: Output format (json, sarif)
+    required: false
+    default: 'json'
+  result-file:
+    description: Path to write scan results
+    required: false
+    default: 'picowatch-results.json'
+  fail-on-blocked:
+    description: Fail the step if prompt is blocked or output is invalid (true/false)
+    required: false
+    default: 'true'
+  verify-determinism:
+    description: Run twice and compare results to verify deterministic output (true/false)
+    required: false
+    default: 'false'
+  version:
+    description: PicoWatch version to use (e.g. '0.7.0' or 'latest')
+    required: false
+    default: '0.7.0'
+
+outputs:
+  blocked:
+    description: Whether the prompt was blocked or output was invalid (true/false)
+    value: ${{ steps.watch.outputs.blocked }}
+  score:
+    description: Risk score (0.0–1.0)
+    value: ${{ steps.watch.outputs.score }}
+  verdict:
+    description: Verdict (clean, suspicious, blocked)
+    value: ${{ steps.watch.outputs.verdict }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Cache PicoWatch
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-picowatch-${{ inputs.version }}
+
+    - name: Install PicoWatch
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "repo" ]; then
+          pip install "${{ github.action_path }}"
+        elif [ "${{ inputs.version }}" = "latest" ]; then
+          pip install picowatch
+        else
+          pip install "picowatch==${{ inputs.version }}"
+        fi
+        picowatch --version
+
+    - name: Run PicoWatch
+      id: watch
+      shell: bash
+      run: |
+        set -o pipefail
+
+        MODE="${{ inputs.mode }}"
+
+        if [ "$MODE" = "health" ]; then
+          echo "Running: picowatch health"
+          picowatch health
+          echo "blocked=false" >> "$GITHUB_OUTPUT"
+          echo "score=0" >> "$GITHUB_OUTPUT"
+          echo "verdict=clean" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        if [ "$MODE" = "scan-prompt" ]; then
+          ARGS=("scan-prompt")
+          if [ -n "${{ inputs.text }}" ]; then
+            ARGS+=(--text "${{ inputs.text }}")
+          elif [ -n "${{ inputs.prompt-file }}" ]; then
+            ARGS+=(--file "${{ inputs.prompt-file }}")
+          else
+            echo "::error::scan-prompt mode requires text or prompt-file input"
+            exit 1
+          fi
+          if [ "${{ inputs.verify-determinism }}" = "true" ]; then
+            ARGS+=(--verify-determinism)
+          fi
+
+          echo "Running: picowatch ${ARGS[*]}"
+          RESULT=$(picowatch "${ARGS[@]}" 2>&1 | tee picowatch-output.txt)
+          echo "$RESULT" > "${{ inputs.result-file }}"
+
+          # Parse JSON result
+          BLOCKED=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read().split('\n')[-1] if '\n' in sys.stdin.read() else sys.stdin.read()); print(str(d.get('blocked',False)).lower())" 2>/dev/null || echo "false")
+          SCORE=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('score',0.0))" 2>/dev/null || echo "0.0")
+          VERDICT=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('verdict','clean'))" 2>/dev/null || echo "clean")
+
+          # Re-parse from saved file for reliability
+          if [ -f "${{ inputs.result-file }}" ]; then
+            BLOCKED=$(python3 -c "import json; d=json.load(open('${{ inputs.result-file }}')); print(str(d.get('blocked',False)).lower())" 2>/dev/null || echo "false")
+            SCORE=$(python3 -c "import json; d=json.load(open('${{ inputs.result-file }}')); print(d.get('score',0.0))" 2>/dev/null || echo "0.0")
+            VERDICT=$(python3 -c "import json; d=json.load(open('${{ inputs.result-file }}')); print(d.get('verdict','clean'))" 2>/dev/null || echo "clean")
+          fi
+
+        elif [ "$MODE" = "validate-output" ]; then
+          ARGS=("validate-output")
+          if [ -z "${{ inputs.schema }}" ] || [ -z "${{ inputs.output-file }}" ]; then
+            echo "::error::validate-output mode requires schema and output-file inputs"
+            exit 1
+          fi
+          ARGS+=(--schema "${{ inputs.schema }}")
+          ARGS+=(--output "${{ inputs.output-file }}")
+          if [ "${{ inputs.verify-determinism }}" = "true" ]; then
+            ARGS+=(--verify-determinism)
+          fi
+
+          echo "Running: picowatch ${ARGS[*]}"
+          RESULT=$(picowatch "${ARGS[@]}" 2>&1 | tee picowatch-output.txt)
+          echo "$RESULT" > "${{ inputs.result-file }}"
+
+          BLOCKED=$(python3 -c "import json; d=json.load(open('${{ inputs.result-file }}')); print(str(not d.get('valid',True)).lower())" 2>/dev/null || echo "false")
+          SCORE=$(python3 -c "import json; d=json.load(open('${{ inputs.result-file }}')); print(d.get('score',0.0))" 2>/dev/null || echo "0.0")
+          VERDICT=$(python3 -c "import json; d=json.load(open('${{ inputs.result-file }}')); print(d.get('verdict','clean'))" 2>/dev/null || echo "clean")
+
+        else
+          echo "::error::Unknown mode: $MODE. Use scan-prompt, validate-output, or health."
+          exit 1
+        fi
+
+        echo "blocked=$BLOCKED" >> "$GITHUB_OUTPUT"
+        echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+        echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
+
+        if [ "${{ inputs.fail-on-blocked }}" = "true" ] && [ "$BLOCKED" = "true" ]; then
+          echo "::error::PicoWatch blocked the prompt (score: $SCORE, verdict: $VERDICT)"
+          exit 1
+        fi
+
+    - name: Summary
+      shell: bash
+      run: |
+        echo "## PicoWatch Defense Results" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Mode:** ${{ inputs.mode }}" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Blocked:** ${{ steps.watch.outputs.blocked }}" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Score:** ${{ steps.watch.outputs.score }}" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Verdict:** ${{ steps.watch.outputs.verdict }}" >> "$GITHUB_STEP_SUMMARY"
