@@ -14,9 +14,6 @@ Rate limiting: Per-IP sliding window (ADR-008).
 from __future__ import annotations
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 import secrets
 import uuid
 from typing import Any
@@ -34,8 +31,9 @@ from picowatch.ratelimit import RateLimiter
 from picowatch.telemetry import TelemetrySink, init_tracing, trace_output_validation, trace_prompt_scan
 from picowatch.types import PromptScanResult
 
-# ─── Request/Response Models ──────────────────────────────────────────────
+logger = logging.getLogger(__name__)
 
+# ─── Request/Response Models ──────────────────────────────────────────────
 
 class PromptScanRequest(BaseModel):
     """Request body for POST /v1/scan/prompt."""
