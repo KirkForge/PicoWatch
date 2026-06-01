@@ -31,8 +31,12 @@ class Normalizer:
     _HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
     # C-style block comment
     _C_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
-    # Line comment (but not in URL context)
-    _LINE_COMMENT = re.compile(r"^(?:\s*//.*$)", re.MULTILINE)
+    # Line comment: match // at start of line or after whitespace, but not inside
+    # URL schemes (http://, https://) or in string contexts.
+    _LINE_COMMENT = re.compile(
+        r"(?<![\'\"/:])//(?!/).*$",
+        re.MULTILINE,
+    )
 
     # Base64 pattern (at least 20 chars, proper padding)
     _BASE64 = re.compile(r"[A-Za-z0-9+/]{20,}={0,2}")
@@ -55,6 +59,11 @@ class Normalizer:
     # LLM token markers: <|im_start|>, <|im_end|>, etc. — preserve these
     # during punctuation collapse so the rule engine can still match them.
     _LLM_TOKEN_MARKER = re.compile(r"<\|[^|]+\|>")
+    # IP address pattern (dotted quad) — must be preserved during normalization
+    # so that rule-engine IP patterns can still match.
+    _IP_ADDRESS = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+    # URL scheme pattern — preserve scheme:// so rule-engine URL patterns match.
+    _URL_SCHEME = re.compile(r"(?:https?|ftp|postgres|mysql|mongodb|redis|mssql)://")
 
     def normalize(self, text: str) -> str:
         """Full normalization pipeline.
@@ -186,6 +195,17 @@ class Normalizer:
         placeholders: dict[str, str] = {}
         for idx, match in enumerate(self._LLM_TOKEN_MARKER.finditer(text)):
             placeholder = f"\x00LLMTOKEN{idx}\x00"
+            placeholders[placeholder] = match.group()
+
+        # Protect IP addresses and URL schemes from punctuation collapse.
+        # Without this, "192.168.1.1" becomes "192 168 1 1" and the rule
+        # engine can no longer match IP or internal-URL patterns.
+        for idx, match in enumerate(self._IP_ADDRESS.finditer(text)):
+            placeholder = f"\x00IPADDR{idx}\x00"
+            placeholders[placeholder] = match.group()
+
+        for idx, match in enumerate(self._URL_SCHEME.finditer(text)):
+            placeholder = f"\x00URLSCHEME{idx}\x00"
             placeholders[placeholder] = match.group()
 
         result = text

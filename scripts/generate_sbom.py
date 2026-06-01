@@ -57,7 +57,7 @@ def generate_sbom(output_path: str = "sbom.json") -> None:
         "$schema": "https://cyclonedx.org/schema/bom-1.5.schema.json",
         "bomFormat": "CycloneDX",
         "specVersion": "1.5",
-        "serialNumber": f"urn:uuid:{datetime.now(timezone.utc).strftime('%Y-%m-%d-%H%M%S')}",
+        "serialNumber": f"urn:uuid:{__import__('uuid').uuid4()}",
         "version": 1,
         "metadata": {
             "timestamp": datetime.now(timezone.utc).isoformat(),

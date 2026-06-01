@@ -34,15 +34,17 @@ class PromptScanResult:
     verdict: Verdict = Verdict.PASS
     normalized_input: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
+    threshold_block: float = 0.7
+    threshold_warn: float = 0.4
 
     def __post_init__(self) -> None:
         # Enforce determinism: round score to 6 decimal places
         if self.score != round(self.score, 6):
             object.__setattr__(self, "score", round(self.score, 6))
-        # Derive verdict from score thresholds
-        if self.blocked or self.score >= 0.7:
+        # Derive verdict from configurable thresholds
+        if self.blocked or self.score >= self.threshold_block:
             object.__setattr__(self, "verdict", Verdict.BLOCK)
-        elif self.score >= 0.4:
+        elif self.score >= self.threshold_warn:
             object.__setattr__(self, "verdict", Verdict.WARN)
         else:
             object.__setattr__(self, "verdict", Verdict.PASS)
@@ -64,13 +66,15 @@ class ValidationResult:
     verdict: Verdict = Verdict.PASS
     redacted: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
+    threshold_block: float = 0.7
+    threshold_warn: float = 0.4
 
     def __post_init__(self) -> None:
         if self.score != round(self.score, 6):
             object.__setattr__(self, "score", round(self.score, 6))
-        if not self.valid or self.score >= 0.7:
+        if not self.valid or self.score >= self.threshold_block:
             object.__setattr__(self, "verdict", Verdict.BLOCK)
-        elif self.score >= 0.4:
+        elif self.score >= self.threshold_warn:
             object.__setattr__(self, "verdict", Verdict.WARN)
         else:
             object.__setattr__(self, "verdict", Verdict.PASS)

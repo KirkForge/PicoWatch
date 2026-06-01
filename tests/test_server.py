@@ -22,7 +22,7 @@ def config_no_auth() -> PicoWatchConfig:
 @pytest.fixture
 def config_with_auth() -> PicoWatchConfig:
     """Config with API key required."""
-    return PicoWatchConfig(api_key="test-secret-key-12345")
+    return PicoWatchConfig(api_key="test-secret-key-1234567890abcdef")
 
 
 @pytest.fixture
@@ -355,7 +355,7 @@ class TestAuthentication:
         response = client_with_auth.post(
             "/v1/scan/prompt",
             json={"text": "Hello"},
-            headers={"X-API-Key": "test-secret-key-12345"},
+            headers={"X-API-Key": "test-secret-key-1234567890abcdef"},
         )
         assert response.status_code == 200
 
@@ -364,7 +364,7 @@ class TestAuthentication:
         response = client_with_auth.post(
             "/v1/scan/prompt",
             json={"text": "Hello"},
-            headers={"Authorization": "Bearer test-secret-key-12345"},
+            headers={"Authorization": "Bearer test-secret-key-1234567890abcdef"},
         )
         assert response.status_code == 200
 
@@ -399,7 +399,7 @@ class TestAuthentication:
         response = client_with_auth.post(
             "/v1/scan/output",
             json={"output": "Hello"},
-            headers={"X-API-Key": "test-secret-key-12345"},
+            headers={"X-API-Key": "test-secret-key-1234567890abcdef"},
         )
         assert response.status_code == 200
 

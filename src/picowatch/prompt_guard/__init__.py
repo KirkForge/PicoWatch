@@ -119,4 +119,6 @@ class PromptGuard:
             duration_ms=duration_ms,
             normalized_input=normalized,
             details=context or {},
+            threshold_block=self._config.threshold_block,
+            threshold_warn=self._config.threshold_warn,
         )

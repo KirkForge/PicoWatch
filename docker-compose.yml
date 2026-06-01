@@ -18,7 +18,7 @@ services:
       - PICOWATCH_AUDIT_RETENTION_DAYS=30
     volumes:
       - picowatch-data:/app/data
-      - ./rules:/app/rules:ro  # Mount custom rules
+      - ./rules:/app/rules/custom:ro  # Mount custom rules (built-in rules preserved)
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-m", "picowatch", "health"]
