@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from picowatch.picoshogun import PicoWatchPlugin
+from picowatch import __version__
 from picowatch.types import PromptScanResult, ValidationResult
 
 # ─── Plugin Initialization ─────────────────────────────────────────────
@@ -15,7 +16,7 @@ class TestPluginInit:
         """Plugin initializes with default config."""
         plugin = PicoWatchPlugin()
         assert plugin.name == "picowatch"
-        assert plugin.version == "0.7.0"
+        assert plugin.version == __version__
         assert plugin.layers == [5, 6]
 
     def test_init_with_config(self) -> None:
@@ -29,7 +30,7 @@ class TestPluginInit:
         plugin = PicoWatchPlugin()
         h = plugin.health()
         assert h["plugin"] == "picowatch"
-        assert h["version"] == "0.7.0"
+        assert h["version"] == __version__
         assert h["layers"] == [5, 6]
         assert h["healthy"] is True
         assert isinstance(h["rules_loaded"], int)

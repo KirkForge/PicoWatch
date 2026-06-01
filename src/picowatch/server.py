@@ -13,6 +13,10 @@ Rate limiting: Per-IP sliding window (ADR-008).
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 import secrets
 import uuid
 from typing import Any
