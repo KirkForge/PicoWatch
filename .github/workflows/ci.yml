@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint
@@ -29,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -95,12 +99,12 @@ jobs:
     needs: [build]
     if: github.event_name == "push" && github.ref == "refs/heads/main"
     steps:
-    - name: Download artifacts
-       uses: actions/download-artifact@v4
-       with:
-         name: dist
-         path: dist/
       - uses: actions/checkout@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
       - name: Generate SLSA provenance (ADR-008)
         run: |
           echo "SLSA Level 3 provenance for PicoWatch build"
