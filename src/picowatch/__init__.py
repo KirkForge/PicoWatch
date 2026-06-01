@@ -5,8 +5,8 @@ __version__ = "1.0.1"
 from picowatch.config import PicoWatchConfig
 from picowatch.health import health_check
 from picowatch.output_guard import OutputGuard
-from picowatch.prompt_guard import PromptGuard
 from picowatch.picoshogun import PicoWatchPlugin, WatchGuard
+from picowatch.prompt_guard import PromptGuard
 from picowatch.telemetry import TelemetrySink
 from picowatch.types import (
     HealthStatus,

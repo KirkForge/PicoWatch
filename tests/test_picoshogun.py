@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from picowatch.picoshogun import PicoWatchPlugin
 from picowatch import __version__
+from picowatch.picoshogun import PicoWatchPlugin
 from picowatch.types import PromptScanResult, ValidationResult
 
 # ─── Plugin Initialization ─────────────────────────────────────────────
