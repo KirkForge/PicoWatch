@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Config file permission warnings** (ADR-008): `check_config_permissions()` warns on group/world-readable config files and errors on world-readable files containing API keys
 - **Audit log integrity checksums** (ADR-008): HMAC-SHA256 checksum on every audit row; `verify_audit_integrity()` method to detect tampering
 - **Audit log auto-cleanup on startup** (ADR-002): `TelemetrySink.__init__()` now calls `cleanup_audit()` to prune entries beyond retention period
-- **`--shogun-plugin` CLI flag** (ADR-005): `picowatch --shogun-plugin` initializes the Shogun PicoWatchPlugin and prints readiness status
+- **`--picoshogun-plugin` CLI flag** (ADR-005): `picowatch --picoshogun-plugin` initializes the PicoShogun PicoWatchPlugin and prints readiness status
 - **Determinism guard** (ADR-006): `random.seed(0)` in scorer module prevents accidental nondeterministic behavior
 - **SLSA provenance + SBOM in CI** (ADR-008): Build job now generates CycloneDX SBOM and SHA-256 digest; provenance job generates SLSA Level 3 attestation on push to master
 - **Schema migration for audit_log**: Added `checksum` column with automatic ALTER TABLE migration for existing databases
@@ -124,12 +124,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [0.2.0] - 2026-05-29
 
 ### Added
-- Shogun Iron Dome plugin adapter (`picowatch.shogun.PicoWatchPlugin`)
-- WatchGuard protocol interface for Shogun firewall pipeline
+- PicoShogun plugin adapter (`picowatch.shogun.PicoWatchPlugin`)
+- WatchGuard protocol interface for PicoShogun firewall pipeline
 - Event bus integration (`on_event`) for prompt_received, output_generated, health_check events
 - Plugin health endpoint with uptime, rules_loaded, corpus_hash
-- Prometheus metrics passthrough for Shogun aggregator
-- 17 new tests for Shogun plugin (init, scan_prompt, validate_output, event bus, determinism, metrics)
+- Prometheus metrics passthrough for PicoShogun aggregator
+- 17 new tests for PicoShogun plugin (init, scan_prompt, validate_output, event bus, determinism, metrics)
 
 ### Changed
 - Bumped version to 0.2.0
@@ -144,7 +144,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - L7 Telemetry architecture (OTel traces, Prometheus metrics, audit log)
 - CLI skeleton (`scan-prompt`, `validate-output`, `serve`)
 - Determinism contract and SCAAT compliance model
-- Standalone-first integration design with Shogun binding
+- Standalone-first integration design with PicoShogun binding
 - Supply-chain hardening (zero-dep core, self-scan, self-sandbox)
 
 ## [0.5.1] - 2026-05-29
@@ -176,7 +176,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Server integration tests** (`tests/test_server_integration.py`): 29 tests covering full request flow, dual-port serving (API/admin separation), auth enforcement (API key + Bearer token), rate limiting integration, and determinism verification via HTTP
 - **Helm chart validation**: `helm lint` and `helm template` pass cleanly
 - **SBOM generation**: `scripts/generate_sbom.py` tested and produces valid CycloneDX JSON (52 components)
-- **Version bump**: 0.5.0 → 0.6.0 across all files (`__init__.py`, `otel.py`, `pyproject.toml`, `Chart.yaml`, `values.yaml`, `test_shogun.py`)
+- **Version bump**: 0.5.0 → 0.6.0 across all files (`__init__.py`, `otel.py`, `pyproject.toml`, `Chart.yaml`, `values.yaml`, `test_picoshogun.py`)
 - Total tests: 236 (was 191)
 
 ### Changed

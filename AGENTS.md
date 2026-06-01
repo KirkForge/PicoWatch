@@ -47,7 +47,7 @@
 - **No inflated claims** — if PicoWatch hasn't been deployed in production, don't call it "production-ready" or "enterprise-grade"
 - **No AI co-authors** — commit author is Henrik Kirk, not any AI model
 - **Honest status** — use ✅ /🔶 /❌ in STATE.md, not "98/100 readiness scores"
-- **Correct naming** — PicoSentry, PicoDome, PicoWatch, PicoShogun (not IronDome, Shogun, 55NDeep)
+- **Correct naming** — PicoSentry, PicoDome, PicoWatch, PicoShogun 
 - **No dead code** that implies capabilities the product doesn't have
 
 ## Secure-Defaults Checklist (Definition of Done)

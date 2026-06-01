@@ -142,13 +142,13 @@ def _rules(args: argparse.Namespace, config: PicoWatchConfig) -> None:
     print(json.dumps(rules_list, indent=2))
 
 
-def _run_shogun_plugin(config: PicoWatchConfig) -> None:
+def _run_picoshogun_plugin(config: PicoWatchConfig) -> None:
     """Run as PicoShogun plugin (ADR-005).
 
     Loads PicoWatch as an in-process plugin in PicoShogun's firewall pipeline.
     The plugin listens for events and provides L5/L6 filtering.
     """
-    from picowatch.shogun import PicoWatchPlugin
+    from picowatch.picoshogun import PicoWatchPlugin
 
     plugin = PicoWatchPlugin()
     h = plugin.health()
@@ -171,7 +171,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--verify-determinism", action="store_true", help="Run twice and compare results")
-    parser.add_argument("--shogun-plugin", action="store_true", help="Run as PicoShogun plugin (ADR-005)")
+    parser.add_argument("--picoshogun-plugin", action="store_true", help="Run as PicoShogun plugin (ADR-005)")
+    parser.add_argument("--version", action="version", version=f"PicoWatch {__version__}")
     sub = parser.add_subparsers(dest="command")
 
     # scan-prompt
@@ -202,8 +203,8 @@ def main(argv: list[str] | None = None) -> None:
         parser.print_help()
         sys.exit(1)
 
-    if args.shogun_plugin:
-        _run_shogun_plugin(config)
+    if args.picoshogun_plugin:
+        _run_picoshogun_plugin(config)
     elif args.command == "scan-prompt":
         _scan_prompt(args, config)
     elif args.command == "validate-output":

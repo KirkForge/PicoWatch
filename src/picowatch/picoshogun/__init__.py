@@ -6,7 +6,7 @@ Pipeline order: L1 (rate limit) → L2 (PicoSentry) → L3 (PicoDome sandbox) �
 
 Usage in PicoShogun config:
     plugins:
-      - picowatch.shogun:PicoWatchPlugin
+      - picowatch.picoshogun:PicoWatchPlugin
     picowatch:
       rules_dir: /path/to/rules
       threshold_block: 0.7
@@ -67,7 +67,7 @@ class PicoWatchPlugin:
 
     In PicoShogun's YAML config:
         plugins:
-          - picowatch.shogun:PicoWatchPlugin
+          - picowatch.picoshogun:PicoWatchPlugin
         picowatch:
           rules_dir: /opt/shogun/rules
           threshold_block: 0.7

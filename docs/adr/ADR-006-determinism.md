@@ -4,7 +4,7 @@
 
 **Context:**
 
-PicoWatch inherits the Shogun platform's determinism requirement. PicoSentry guarantees same input + same corpus = same output. PicoDome guarantees same command + same policy = same verdict. PicoWatch must make the same guarantee for prompt/output defense.
+PicoWatch inherits the PicoShogun platform's determinism requirement. PicoSentry guarantees same input + same corpus = same output. PicoDome guarantees same command + same policy = same verdict. PicoWatch must make the same guarantee for prompt/output defense.
 
 The challenge: scoring thresholds, rule ordering, and normalization could introduce nondeterminism if not carefully controlled.
 

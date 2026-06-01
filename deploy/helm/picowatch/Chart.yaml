@@ -13,7 +13,7 @@ keywords:
   - prompt-injection
   - output-validation
   - telemetry
-  - shogun
+  - picoshogun
 maintainers:
   - name: KirkForge
     email: kirk@kirkforge.dev

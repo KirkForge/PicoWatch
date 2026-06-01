@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "picowatch"
-version = "0.7.0"
+version = "1.0.0"
 description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability"
 readme = "README.md"
 license = "BUSL-1.1"
@@ -26,7 +26,7 @@ keywords = [
     "supply-chain",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "Operating System :: OS Independent",
@@ -71,6 +71,19 @@ dev = [
 
 [project.scripts]
 picowatch = "picowatch.cli:main"
+
+
+[project.urls]
+Homepage = "https://github.com/KirkForge/PicoWatch"
+Documentation = "https://github.com/KirkForge/PicoWatch#readme"
+Repository = "https://github.com/KirkForge/PicoWatch"
+Issues = "https://github.com/KirkForge/PicoWatch/issues"
+Changelog = "https://github.com/KirkForge/PicoWatch/blob/main/CHANGELOG.md"
+"Release Notes" = "https://github.com/KirkForge/PicoWatch/releases"
+"Source Code" = "https://github.com/KirkForge/PicoWatch"
+"Bug Tracker" = "https://github.com/KirkForge/PicoWatch/issues"
+Commercial = "https://github.com/KirkForge/PicoShogun"
+
 
 [tool.setuptools.packages.find]
 where = ["src"]

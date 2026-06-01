@@ -1,4 +1,4 @@
-# feat(shogun-plugin): PicoShogun firewall integration adapter
+# feat(picoshogun-plugin): PicoShogun firewall integration adapter
 
 **Labels:** enhancement
 

@@ -68,7 +68,7 @@ PicoWatch/
 │   ├── test_ratelimit.py
 │   ├── test_server.py
 │   ├── test_server_integration.py
-│   ├── test_shogun.py
+│   ├── test_picoshogun.py
 │   └── test_otel.py
 ├── deploy/
 │   ├── prometheus.yml
@@ -122,7 +122,7 @@ PicoWatch/
 - test_determinism: 3
 - test_ratelimit: 10
 - test_server: 55
-- test_shogun: 17
+- test_picoshogun: 17
 - test_otel: 16
 - test_server_integration: 29
 ```

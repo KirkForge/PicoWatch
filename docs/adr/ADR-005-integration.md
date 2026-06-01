@@ -77,7 +77,7 @@ picowatch scan-prompt --text "hello"
 picowatch serve --port 8766
 
 # PicoShogun plugin mode (loaded by PicoShogun process)
-picowatch --shogun-plugin
+picowatch --picoshogun-plugin
 ```
 
 **Consequences:**

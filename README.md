@@ -1,15 +1,17 @@
-# PicoWatch
-
 ![PicoWatch Banner](docs/banner.png)
+
+# PicoWatch
 
 **LLM prompt injection detection, output validation, and telemetry.**
 
 [![CI](https://github.com/KirkForge/PicoWatch/actions/workflows/ci.yml/badge.svg)](https://github.com/KirkForge/PicoWatch)
+[![PyPI](https://img.shields.io/pypi/v/picowatch)](https://pypi.org/project/picowatch/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![Rules](https://img.shields.io/badge/rules-91-blue)](rules/)
 [![Tests](https://img.shields.io/badge/tests-258%20passing-brightgreen)](tests/)
-[![License: BUSL-1.1](https://img.shields.io/badge/license-BUSL--1.1-orange)](LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/license-BUSL--1.1-blue)](LICENSE)
 [![KirkForge](https://img.shields.io/badge/org-KirkForge-blue)](https://github.com/KirkForge)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/kirkforge)
 
 PicoWatch is the 3rd product in the [Pico Security Series](https://github.com/KirkForge). It runs **standalone** or integrates into PicoShogun's firewall layer. 258 tests, thread-safe rate limiting, audit HMAC, `assert_secure()` startup gate, default bind `127.0.0.1`.
 
