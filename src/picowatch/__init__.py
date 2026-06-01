@@ -1,6 +1,6 @@
 """PicoWatch — LLM defender with telemetry."""
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from picowatch.config import PicoWatchConfig
 from picowatch.health import health_check

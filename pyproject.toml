@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "picowatch"
-version = "1.0.0"
+version = "1.0.1"
 description = "PicoWatch — LLM defender with telemetry: prompt injection detection, output validation, and observability"
 readme = "README.md"
 license = "BUSL-1.1"
